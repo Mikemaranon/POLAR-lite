@@ -1,0 +1,87 @@
+# db_manager.py
+
+from .utils import Database, LogRepository
+from .db_methods import (
+    UsersTable,
+    SessionsTable,
+    AgentLogsTable,
+    ProjectsTable,
+    ProfilesTable,
+    ConversationsTable,
+    MessagesTable,
+    SettingsTable,
+    ModelsCacheTable,
+)
+
+class DBManager:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if hasattr(self, "initialized") and self.initialized:
+            return
+
+        self.db = Database()
+        self.logger = LogRepository()
+
+        # Export table interfaces
+        self.users = UsersTable(self.db)
+        self.sessions = SessionsTable(self.db)
+        self.agent_logs = AgentLogsTable(self.db)
+        self.projects = ProjectsTable(self.db)
+        self.profiles = ProfilesTable(self.db)
+        self.conversations = ConversationsTable(self.db)
+        self.messages = MessagesTable(self.db)
+        self.settings = SettingsTable(self.db)
+        self.models_cache = ModelsCacheTable(self.db)
+
+        self._ensure_defaults()
+
+        self.initialized = True
+
+    # Generic wrapper for execute with logging
+    def execute(
+        self,
+        query,
+        params=(),
+        *,
+        fetchone=False,
+        fetchall=False,
+        lastrowid=False
+    ):
+        op, data = self.db.execute(
+            query,
+            params,
+            fetchone=fetchone,
+            fetchall=fetchall,
+            lastrowid=lastrowid
+        )
+
+        # Secure logging: avoid logging data_logs operations to prevent recursion
+        if op in ("INSERT", "UPDATE", "DELETE") and "data_logs" not in query.lower():
+            self.logger.log(
+                level="INFO",
+                source="DBManager",
+                message=f"{op} executed",
+                payload={"query": query, "params": params}
+            )
+
+        return data
+
+    def _ensure_defaults(self):
+        default_profile = self.profiles.get_default()
+        if default_profile:
+            return
+
+        self.profiles.create(
+            name="Default Assistant",
+            system_prompt="You are a helpful local-first AI assistant.",
+            temperature=0.7,
+            top_p=1.0,
+            max_tokens=2048,
+            is_default=True,
+        )
