@@ -46,6 +46,10 @@ class DBManagerTests(IsolatedDatabaseTestCase):
         self.assertEqual([message["id"] for message in messages], [first_message_id, second_message_id])
         self.assertEqual([message["position"] for message in messages], [0, 1])
 
+        db.conversations.rename(conversation_id, "Workspace kickoff")
+        renamed_conversation = db.conversations.get(conversation_id)
+        self.assertEqual(renamed_conversation["title"], "Workspace kickoff")
+
     def test_settings_and_model_cache_support_upsert(self):
         db = DBManager()
 
@@ -91,3 +95,41 @@ class DBManagerTests(IsolatedDatabaseTestCase):
         self.assertIsNotNone(replacement_default)
         self.assertEqual(replacement_default["id"], profile_id)
         self.assertTrue(replacement_default["is_default"])
+
+    def test_profiles_store_up_to_ten_unique_tags(self):
+        db = DBManager()
+        profile_id = db.profiles.create(
+            name="Tag heavy",
+            tags=[
+                "analysis",
+                "docs",
+                "frontend",
+                "backend",
+                "testing",
+                "ux",
+                "local",
+                "cloud",
+                "agents",
+                "python",
+                "python",
+                "extra",
+            ],
+        )
+
+        profile = db.profiles.get(profile_id)
+
+        self.assertEqual(
+            profile["tags"],
+            [
+                "analysis",
+                "docs",
+                "frontend",
+                "backend",
+                "testing",
+                "ux",
+                "local",
+                "cloud",
+                "agents",
+                "python",
+            ],
+        )

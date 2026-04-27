@@ -31,15 +31,21 @@ export async function loadConversations(projectId) {
     state.conversations = data.conversations || [];
 
     if (state.activeConversationId) {
-        const stillExists = state.conversations.some(
+        const matchingConversation = state.conversations.find(
             (conversation) => conversation.id === state.activeConversationId
         );
 
-        if (!stillExists) {
+        if (!matchingConversation) {
             state.activeConversationId = null;
             state.activeConversation = null;
             state.activeMessages = [];
+            return;
         }
+
+        state.activeConversation = {
+            ...(state.activeConversation || {}),
+            ...matchingConversation,
+        };
     }
 }
 

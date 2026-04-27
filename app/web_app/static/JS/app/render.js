@@ -1,8 +1,10 @@
 import { elements } from "./dom.js";
 import { state } from "./state.js";
 import {
+    PROFILE_SETTINGS_PREVIEW_TAGS,
     buildFallbackProviderCatalogs,
     createEmptyListItem,
+    createMetaChipsMarkup,
     createMessageMarkup,
     escapeHtml,
     getActiveProject,
@@ -11,11 +13,10 @@ import {
     getDefaultProfileId,
     getProviderAvailabilityLabel,
     getProviderCatalog,
-    getRootProviderDisplayName,
-    getRootProviderForActualProvider,
     getProfileNameById,
     getProjectConversations,
     getProviderDisplayName,
+    getRootProviderDisplayName,
     getSelectedModel,
     getSelectedCloudProvider,
     getSelectedProfileId,
@@ -306,17 +307,19 @@ export function renderConversationHeader() {
 
     if (state.workspaceMode === "conversation" && state.activeConversation) {
         const actualProvider = state.activeConversation?.provider || getActualProvider();
-        const rootProvider = getRootProviderForActualProvider(actualProvider);
-        const provider = rootProvider === "cloud"
-            ? `Cloud · ${getProviderDisplayName(actualProvider)}`
-            : getRootProviderDisplayName(rootProvider);
-        const model = getSelectedModel() || "modelo pendiente";
-        const profileName = getProfileNameById(getSelectedProfileId());
-        const projectLabel = activeProject ? ` · Proyecto ${activeProject.name}` : "";
+        const provider = getProviderDisplayName(actualProvider);
+        const model = state.activeConversation?.model || getSelectedModel() || "modelo pendiente";
+        const profileName = getProfileNameById(state.activeConversation?.profile_id || getSelectedProfileId());
 
         elements.workspaceEyebrow.textContent = activeProject ? "Chat del proyecto" : "Chat";
         elements.conversationTitle.textContent = state.activeConversation.title || "Nueva conversación";
-        elements.conversationSubtitle.textContent = `Proveedor ${provider} · Modelo ${model} · Perfil ${profileName}${projectLabel}`;
+        elements.conversationMeta.innerHTML = createMetaChipsMarkup([
+            { group: "provider", label: "Proveedor", value: provider },
+            { group: "model", label: "Modelo", value: model },
+            { group: "profile", label: "Perfil", value: profileName },
+        ]);
+        elements.conversationMeta.hidden = false;
+        elements.conversationSubtitle.hidden = true;
         elements.backToProjectButton.hidden = !activeProject;
         elements.chatSettingsButton.hidden = false;
         return;
@@ -326,6 +329,9 @@ export function renderConversationHeader() {
         elements.workspaceEyebrow.textContent = "Proyecto";
         elements.conversationTitle.textContent = activeProject.name;
         elements.conversationSubtitle.textContent = "Gestiona aquí el prompt del proyecto y sus chats, sin mezclarlo con los chats puntuales.";
+        elements.conversationMeta.innerHTML = "";
+        elements.conversationMeta.hidden = true;
+        elements.conversationSubtitle.hidden = false;
         elements.backToProjectButton.hidden = true;
         elements.chatSettingsButton.hidden = false;
         return;
@@ -334,7 +340,10 @@ export function renderConversationHeader() {
     if (state.workspaceMode === "settings") {
         elements.workspaceEyebrow.textContent = "Configuración";
         elements.conversationTitle.textContent = "Ajustes generales";
-        elements.conversationSubtitle.textContent = "Gestiona aquí el modelo activo, las claves, los perfiles y la sesión de POLAR studio.";
+        elements.conversationSubtitle.textContent = "Gestiona aquí el modelo activo, las claves, los perfiles y la sesión de POLAR lite.";
+        elements.conversationMeta.innerHTML = "";
+        elements.conversationMeta.hidden = true;
+        elements.conversationSubtitle.hidden = false;
         elements.backToProjectButton.hidden = true;
         elements.chatSettingsButton.hidden = true;
         return;
@@ -344,6 +353,9 @@ export function renderConversationHeader() {
         elements.workspaceEyebrow.textContent = "Chat";
         elements.conversationTitle.textContent = "Nueva conversación";
         elements.conversationSubtitle.textContent = "Abre ajustes generales para configurar el modelo y ajustes del chat para elegir el perfil.";
+        elements.conversationMeta.innerHTML = "";
+        elements.conversationMeta.hidden = true;
+        elements.conversationSubtitle.hidden = false;
         elements.backToProjectButton.hidden = true;
         elements.chatSettingsButton.hidden = false;
         return;
@@ -386,7 +398,7 @@ export function renderSettingsProfilesManager() {
                 ? `<span class="profile-summary-card__badge">Default</span>`
                 : "";
             const personality = profile.personality || "Sin personalidad definida";
-            const tags = Array.isArray(profile.tags) ? profile.tags.slice(0, 2) : [];
+            const tags = Array.isArray(profile.tags) ? profile.tags.slice(0, PROFILE_SETTINGS_PREVIEW_TAGS) : [];
             const tagsMarkup = tags.length
                 ? tags.map((tag) => `
                     <span class="profile-summary-card__tag">${escapeHtml(tag)}</span>
@@ -456,26 +468,32 @@ export function renderProfilePicker() {
 
     elements.profilePicker.innerHTML = `
         <div class="selection-field">
+            <div class="profile-picker__current" aria-live="polite">
+                <span class="profile-picker__trigger-copy">
+                    <strong>${escapeHtml(selectedProfile?.name || "Sin perfil activo")}</strong>
+                    <span>${escapeHtml(selectedProfile?.system_prompt || "Selecciona un perfil para este chat.")}</span>
+                </span>
+            </div>
             <div class="selection-field__search">
-                <button
-                    id="profile-picker-trigger"
-                    class="profile-picker__trigger"
-                    type="button"
-                    aria-expanded="false"
-                >
-                    <span class="profile-picker__trigger-copy">
-                        <strong>${escapeHtml(selectedProfile?.name || "Sin perfil activo")}</strong>
-                        <span>${escapeHtml(selectedProfile?.system_prompt || "Selecciona un perfil para este chat.")}</span>
-                    </span>
-                    <span class="profile-picker__trigger-icon">▾</span>
-                </button>
-                <div id="profile-picker-panel" class="profile-picker__panel" hidden>
+                <div class="profile-picker__search-shell">
                     <label class="field field--stacked profile-picker__search-field">
                         <span>Buscar perfil</span>
-                        <input id="profile-picker-search" type="search" placeholder="Busca por nombre o prompt..." autocomplete="off">
+                        <input
+                            id="profile-picker-search"
+                            type="search"
+                            placeholder="Busca por nombre o prompt..."
+                            autocomplete="off"
+                            aria-expanded="false"
+                            aria-controls="profile-picker-panel"
+                        >
                     </label>
-                    <div id="profile-picker-results" class="selection-field__results">
-                        ${optionsMarkup}
+                    <div id="profile-picker-panel" class="profile-picker__panel" hidden>
+                        <div id="profile-picker-results" class="selection-field__results">
+                            ${optionsMarkup}
+                        </div>
+                        <div id="profile-picker-no-results" class="profile-picker__empty" hidden>
+                            No hay perfiles que coincidan con la búsqueda actual.
+                        </div>
                     </div>
                 </div>
             </div>

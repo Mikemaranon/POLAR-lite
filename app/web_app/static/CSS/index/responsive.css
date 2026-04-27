@@ -25,6 +25,10 @@
         flex-direction: column;
     }
 
+    .workspace__meta {
+        gap: 8px;
+    }
+
     .workspace__header-actions,
     .project-space__hero,
     .project-space__actions,
@@ -49,6 +53,11 @@
     .settings-space__grid,
     .profiles-manager {
         grid-template-columns: 1fr;
+    }
+
+    .selection-chip {
+        width: 100%;
+        justify-content: flex-start;
     }
 
     .prompt-grid {

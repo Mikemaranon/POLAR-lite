@@ -53,6 +53,13 @@
     font-size: 0.95rem;
 }
 
+.workspace__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+
 .workspace__header-actions {
     display: flex;
     align-items: center;
@@ -173,6 +180,50 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--accent-strong);
+}
+
+.selection-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 8px 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--meta-chip-border);
+    background: var(--meta-chip-bg);
+    color: var(--text);
+    box-shadow: var(--shadow-chip);
+}
+
+.selection-chip__group {
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.selection-chip__value {
+    margin-left: 9px;
+    padding-left: 9px;
+    border-left: 1px solid var(--chip-divider);
+    font-size: 0.89rem;
+    font-weight: 500;
+}
+
+.selection-chip[data-group="provider"] .selection-chip__group {
+    color: var(--meta-chip-provider);
+}
+
+.selection-chip[data-group="model"] .selection-chip__group {
+    color: var(--meta-chip-model);
+}
+
+.selection-chip[data-group="profile"] .selection-chip__group {
+    color: var(--meta-chip-profile);
+}
+
+.selection-chip--static {
+    cursor: default;
 }
 
 .messages-container {

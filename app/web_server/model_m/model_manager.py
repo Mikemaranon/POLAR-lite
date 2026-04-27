@@ -20,3 +20,24 @@ class ModelManager:
         settings: dict | None = None,
     ) -> dict:
         return self.provider_manager.chat(provider_name, messages, model, settings or {})
+
+    def stream_chat(
+        self,
+        provider_name: str,
+        messages: list[dict],
+        model: str,
+        settings: dict | None = None,
+    ):
+        return self.provider_manager.stream_chat(provider_name, messages, model, settings or {})
+
+    def generate_conversation_title(
+        self,
+        provider_name: str,
+        model: str,
+        first_user_message: str,
+    ) -> str:
+        return self.provider_manager.generate_conversation_title(
+            provider_name,
+            model,
+            first_user_message,
+        )

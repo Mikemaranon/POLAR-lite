@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POLAR studio</title>
+    <title>POLAR lite</title>
     <link rel="stylesheet" href="/static/CSS/index.css">
     <script type="module" src="/static/JS/app/main.js"></script>
 </head>
@@ -13,15 +13,41 @@
             <div class="sidebar__inner">
                 <div class="sidebar__top">
                     <div class="brand">
-                        <div class="brand__mark">PS</div>
                         <div>
                             <p class="brand__eyebrow">Local-first AI</p>
-                            <h1 class="brand__title">POLAR studio</h1>
+                            <h1 class="brand__title">POLAR lite</h1>
                         </div>
                     </div>
-                    <p class="sidebar__summary">
-                        Proyectos y conversaciones guardadas en local, con configuración general separada de los ajustes de cada chat.
-                    </p>
+                    <nav class="sidebar-links" aria-label="Accesos rápidos">
+                        <a
+                            class="sidebar-link"
+                            href="https://github.com/Mikemaranon/POLAR-lite"
+                            rel="noreferrer"
+                        >
+                            <span class="sidebar-link__label">
+                                <span class="sidebar-link__icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="currentColor" role="img" focusable="false">
+                                        <path d="M12 21.35 10.55 20.03C5.4 15.36 2 12.27 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35Z"></path>
+                                    </svg>
+                                </span>
+                                <strong>apoyar</strong>
+                            </span>
+                        </a>
+                        <a
+                            class="sidebar-link"
+                            href="https://huggingface.co/models"
+                            rel="noreferrer"
+                        >
+                            <span class="sidebar-link__label">
+                                <span class="sidebar-link__icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="currentColor" role="img" focusable="false">
+                                        <path d="M10.5 3a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm10.2 13.79-3.67-3.67a1 1 0 0 0-1.41 1.41l3.67 3.67a1 1 0 0 0 1.41-1.41Z"></path>
+                                    </svg>
+                                </span>
+                                <strong>explorar</strong>
+                            </span>
+                        </a>
+                    </nav>
                 </div>
 
                 <div class="sidebar__sections">
@@ -75,6 +101,7 @@
                 <div class="workspace__identity">
                     <p id="workspace-eyebrow" class="workspace__eyebrow">Chat</p>
                     <h2 id="conversation-title" class="workspace__title">Nueva conversación</h2>
+                    <div id="conversation-meta" class="workspace__meta" hidden></div>
                     <p id="conversation-subtitle" class="workspace__subtitle">
                         Abre ajustes para elegir proveedor, modelo y perfil antes de empezar.
                     </p>
@@ -94,7 +121,7 @@
 
             <section class="chat-surface">
                 <div id="empty-state" class="empty-state">
-                    <p class="empty-state__eyebrow">POLAR studio</p>
+                    <p class="empty-state__eyebrow">POLAR lite</p>
                     <h3>Tu espacio local para conversar con modelos.</h3>
                     <p>
                         Crea un chat, abre ajustes generales para el modelo y usa los ajustes del chat para elegir el perfil sin salir de esta vista.
@@ -252,7 +279,7 @@
                         </div>
                     </div>
                     <p class="composer__footer-note">
-                        POLAR studio puede responder usando MLX, Ollama u OpenAI según tu configuración activa.
+                        POLAR lite puede responder usando MLX, Ollama u OpenAI según tu configuración activa.
                     </p>
                 </form>
             </footer>
@@ -310,7 +337,7 @@
                         </label>
                         <label class="field field--stacked">
                             <span>Etiquetas</span>
-                            <input id="profile-tags-input" type="text" placeholder="Máximo 2, separadas por comas">
+                            <input id="profile-tags-input" type="text" placeholder="Máximo 10, separadas por comas">
                         </label>
                         <label class="field field--stacked">
                             <span>System prompt</span>

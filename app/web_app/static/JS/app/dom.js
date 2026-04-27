@@ -43,6 +43,7 @@ export const elements = {
     conversationCount: document.getElementById("conversation-count"),
     workspaceEyebrow: document.getElementById("workspace-eyebrow"),
     conversationTitle: document.getElementById("conversation-title"),
+    conversationMeta: document.getElementById("conversation-meta"),
     conversationSubtitle: document.getElementById("conversation-subtitle"),
     emptyState: document.getElementById("empty-state"),
     projectSpace: document.getElementById("project-space"),

@@ -61,15 +61,21 @@ class MLXProvider(ModelProvider):
                 provider=self.provider_name,
             )
 
-        load_fn, generate_fn = self._import_mlx_runtime()
-        resolved_model = self._resolve_model_target(model)
-        model_instance, tokenizer = self._get_or_load_model(load_fn, resolved_model)
-
-        prompt = self._build_prompt(tokenizer, self.normalize_messages(messages))
-        generation_kwargs = self._build_generation_kwargs(generate_fn, prompt, settings)
+        (
+            stream_generate_fn,
+            model_instance,
+            tokenizer,
+            generation_kwargs,
+            resolved_model,
+        ) = self._prepare_generation(messages, model, settings)
 
         try:
-            content = generate_fn(model_instance, tokenizer, **generation_kwargs)
+            content, finish_reason, usage = self._generate_content(
+                stream_generate_fn,
+                model_instance,
+                tokenizer,
+                generation_kwargs,
+            )
         except Exception as error:
             raise ModelOperationError(
                 f"MLX generation failed: {error}",
@@ -79,26 +85,92 @@ class MLXProvider(ModelProvider):
         return self.normalize_chat_response(
             model=model,
             content=str(content),
-            usage={
-                "prompt_characters": len(prompt),
-                "completion_characters": len(str(content)),
-            },
-            finish_reason="stop",
+            usage=usage,
+            finish_reason=finish_reason,
             raw_response={
                 "resolved_model": str(resolved_model),
             },
         )
 
+    def stream_chat(self, messages: list[dict], model: str, settings: dict | None = None):
+        if not self.is_available():
+            raise ProviderUnavailableError(
+                "mlx_lm is not installed. Install it before using the MLX provider.",
+                provider=self.provider_name,
+            )
+
+        (
+            stream_generate_fn,
+            model_instance,
+            tokenizer,
+            generation_kwargs,
+            resolved_model,
+        ) = self._prepare_generation(messages, model, settings)
+
+        segments = []
+        finish_reason = "stop"
+        usage = {}
+        chunk_count = 0
+
+        try:
+            for response in stream_generate_fn(
+                model_instance,
+                tokenizer,
+                **generation_kwargs,
+            ):
+                chunk_count += 1
+                text = response.text or ""
+                if text:
+                    segments.append(text)
+                    yield {
+                        "type": "delta",
+                        "delta": text,
+                    }
+
+                finish_reason = response.finish_reason or finish_reason
+                usage = {
+                    "prompt_tokens": response.prompt_tokens,
+                    "completion_tokens": response.generation_tokens,
+                    "prompt_tps": response.prompt_tps,
+                    "generation_tps": response.generation_tps,
+                    "peak_memory_gb": response.peak_memory,
+                }
+        except Exception as error:
+            raise ModelOperationError(
+                f"MLX generation failed: {error}",
+                provider=self.provider_name,
+            ) from error
+
+        content = "".join(segments)
+        usage["prompt_characters"] = len(generation_kwargs.get("prompt", ""))
+        usage["completion_characters"] = len(content)
+
+        yield {
+            "type": "response",
+            "response": self.normalize_chat_response(
+                model=model,
+                content=content,
+                usage=usage,
+                finish_reason=finish_reason,
+                raw_response={
+                    "resolved_model": str(resolved_model),
+                    "streamed": True,
+                    "chunk_count": chunk_count,
+                },
+            ),
+        }
+
     def _import_mlx_runtime(self):
         try:
-            from mlx_lm import generate, load
+            from mlx_lm import load, stream_generate
+            from mlx_lm.sample_utils import make_sampler
         except ImportError as error:
             raise ProviderUnavailableError(
                 "mlx_lm is not installed. Install it before using the MLX provider.",
                 provider=self.provider_name,
             ) from error
 
-        return load, generate
+        return load, stream_generate, make_sampler
 
     def _get_or_load_model(self, load_fn, resolved_model):
         cache_key = str(resolved_model)
@@ -113,6 +185,27 @@ class MLXProvider(ModelProvider):
                     ) from error
 
             return self._loaded_models[cache_key]
+
+    def _prepare_generation(self, messages, model, settings):
+        load_fn, stream_generate_fn, make_sampler_fn = self._import_mlx_runtime()
+        resolved_model = self._resolve_model_target(model)
+        model_instance, tokenizer = self._get_or_load_model(load_fn, resolved_model)
+
+        prompt = self._build_prompt(tokenizer, self.normalize_messages(messages))
+        generation_kwargs = self._build_generation_kwargs(
+            stream_generate_fn,
+            prompt,
+            settings,
+            make_sampler_fn=make_sampler_fn,
+        )
+
+        return (
+            stream_generate_fn,
+            model_instance,
+            tokenizer,
+            generation_kwargs,
+            resolved_model,
+        )
 
     def _build_prompt(self, tokenizer, messages):
         if hasattr(tokenizer, "apply_chat_template"):
@@ -129,8 +222,8 @@ class MLXProvider(ModelProvider):
         transcript.append("ASSISTANT:")
         return "\n".join(transcript)
 
-    def _build_generation_kwargs(self, generate_fn, prompt, settings):
-        signature = inspect.signature(generate_fn)
+    def _build_generation_kwargs(self, stream_generate_fn, prompt, settings, *, make_sampler_fn):
+        signature = inspect.signature(stream_generate_fn)
         common = self.get_common_generation_settings(settings)
         kwargs = {
             "prompt": prompt,
@@ -138,17 +231,61 @@ class MLXProvider(ModelProvider):
 
         if "verbose" in signature.parameters:
             kwargs["verbose"] = False
-        if common.get("max_tokens") is not None and "max_tokens" in signature.parameters:
+        if common.get("max_tokens") is not None and self._accepts_kwarg(signature, "max_tokens"):
             kwargs["max_tokens"] = common["max_tokens"]
-        if common.get("temperature") is not None:
-            if "temperature" in signature.parameters:
-                kwargs["temperature"] = common["temperature"]
-            elif "temp" in signature.parameters:
-                kwargs["temp"] = common["temperature"]
-        if common.get("top_p") is not None and "top_p" in signature.parameters:
-            kwargs["top_p"] = common["top_p"]
+
+        sampler = self._build_sampler(common, make_sampler_fn)
+        if sampler is not None:
+            kwargs["sampler"] = sampler
 
         return kwargs
+
+    def _build_sampler(self, common, make_sampler_fn):
+        temperature = common.get("temperature")
+        top_p = common.get("top_p")
+
+        if temperature is None and top_p is None:
+            return None
+
+        return make_sampler_fn(
+            temp=0.0 if temperature is None else temperature,
+            top_p=1.0 if top_p is None else top_p,
+        )
+
+    def _generate_content(self, stream_generate_fn, model_instance, tokenizer, generation_kwargs):
+        segments = []
+        finish_reason = "stop"
+        usage = {}
+
+        for response in stream_generate_fn(
+            model_instance,
+            tokenizer,
+            **generation_kwargs,
+        ):
+            segments.append(response.text)
+            finish_reason = response.finish_reason or finish_reason
+            usage = {
+                "prompt_tokens": response.prompt_tokens,
+                "completion_tokens": response.generation_tokens,
+                "prompt_tps": response.prompt_tps,
+                "generation_tps": response.generation_tps,
+                "peak_memory_gb": response.peak_memory,
+            }
+
+        content = "".join(segments)
+        usage["prompt_characters"] = len(generation_kwargs.get("prompt", ""))
+        usage["completion_characters"] = len(content)
+
+        return content, finish_reason, usage
+
+    def _accepts_kwarg(self, signature, parameter_name):
+        if parameter_name in signature.parameters:
+            return True
+
+        return any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in signature.parameters.values()
+        )
 
     def _resolve_model_target(self, model):
         direct_path = Path(model).expanduser()

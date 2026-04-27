@@ -1,4 +1,6 @@
 class ProfilesTable:
+    MAX_TAGS = 10
+
     def __init__(self, db):
         self.db = db
 
@@ -193,7 +195,7 @@ class ProfilesTable:
             normalized_tags.append(normalized)
             seen.add(normalized_key)
 
-            if len(normalized_tags) == 2:
+            if len(normalized_tags) == self.MAX_TAGS:
                 break
 
         return ",".join(normalized_tags)

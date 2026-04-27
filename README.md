@@ -1,6 +1,6 @@
-# POLAR studio
+# POLAR lite
 
-This project extends the original Flask template into POLAR studio, a local-first AI chat application. The codebase is now organized into three top-level folders:
+This project extends the original Flask template into POLAR lite, a local-first AI chat application. The codebase is now organized into three top-level folders:
 
 - `app/`: application code
 - `tests/`: domain-oriented test runners and test cases

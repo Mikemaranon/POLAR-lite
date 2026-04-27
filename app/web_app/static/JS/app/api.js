@@ -5,20 +5,7 @@ export async function apiRequestJson(method, endpoint, body = null) {
     const response = await send_API_request(method, endpoint, body);
     const payload = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-        const errorMessage = payload.error?.message
-            || payload.error
-            || payload.message
-            || `Request failed: ${response.status}`;
-
-        if (response.status === 401) {
-            delete_token();
-            window.location.href = "/login";
-            throw new Error("Tu sesión ha expirado.");
-        }
-
-        throw new Error(errorMessage);
-    }
+    ensureSuccessfulResponse(response, payload);
 
     if (
         payload.error
@@ -119,6 +106,144 @@ export async function sendChat(data) {
 }
 
 
+export async function sendChatStream(data, handlers = {}) {
+    const response = await send_API_request("POST", "/api/chat", {
+        ...data,
+        stream: true,
+    });
+
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        ensureSuccessfulResponse(response, payload);
+    }
+
+    if (!response.body) {
+        throw new Error("El navegador no soporta respuestas en streaming en este entorno.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalResponse = null;
+
+    while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        buffer = buffer.replaceAll("\r\n", "\n");
+
+        let boundaryIndex = buffer.indexOf("\n\n");
+        while (boundaryIndex !== -1) {
+            const rawEvent = buffer.slice(0, boundaryIndex);
+            buffer = buffer.slice(boundaryIndex + 2);
+
+            const event = parseSseEvent(rawEvent);
+            if (event) {
+                finalResponse = handleStreamEvent(event, handlers) || finalResponse;
+            }
+
+            boundaryIndex = buffer.indexOf("\n\n");
+        }
+
+        if (done) {
+            break;
+        }
+    }
+
+    const trailingEvent = parseSseEvent(buffer);
+    if (trailingEvent) {
+        finalResponse = handleStreamEvent(trailingEvent, handlers) || finalResponse;
+    }
+
+    if (!finalResponse) {
+        throw new Error("La respuesta en streaming terminó sin un evento final.");
+    }
+
+    return finalResponse;
+}
+
+
 export async function persistSetting(key, value) {
     return apiRequestJson("POST", "/api/settings", { key, value });
+}
+
+
+function ensureSuccessfulResponse(response, payload) {
+    if (!response.ok) {
+        const errorMessage = payload.error?.message
+            || payload.error
+            || payload.message
+            || `Request failed: ${response.status}`;
+
+        if (response.status === 401) {
+            delete_token();
+            window.location.href = "/login";
+            throw new Error("Tu sesión ha expirado.");
+        }
+
+        throw new Error(errorMessage);
+    }
+}
+
+
+function parseSseEvent(rawEvent) {
+    const normalized = (rawEvent || "").trim();
+    if (!normalized) {
+        return null;
+    }
+
+    let eventName = "message";
+    const dataLines = [];
+
+    normalized.split("\n").forEach((line) => {
+        if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+            return;
+        }
+
+        if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+        }
+    });
+
+    let payload = {};
+    if (dataLines.length) {
+        try {
+            payload = JSON.parse(dataLines.join("\n"));
+        } catch {
+            throw new Error("La respuesta del servidor llegó con un formato de streaming inválido.");
+        }
+    }
+
+    return {
+        event: eventName,
+        payload,
+    };
+}
+
+
+function handleStreamEvent(event, handlers) {
+    if (event.event === "start") {
+        handlers.onStart?.(event.payload);
+        return null;
+    }
+
+    if (event.event === "delta") {
+        handlers.onDelta?.(event.payload.delta || "", event.payload);
+        return null;
+    }
+
+    if (event.event === "end") {
+        handlers.onEnd?.(event.payload.response, event.payload);
+        return event.payload.response;
+    }
+
+    if (event.event === "error") {
+        handlers.onError?.(event.payload.error, event.payload);
+        throw new Error(
+            event.payload.error?.message
+            || "La generación en streaming falló."
+        );
+    }
+
+    return null;
 }

@@ -12,6 +12,12 @@ from .providers import (
 
 
 class ProviderManager:
+    TITLE_GENERATION_PROMPT = (
+        "Genera un titulo corto para una conversacion a partir del primer mensaje del usuario. "
+        "Responde solo con el titulo, sin comillas ni puntuacion final, usando entre 2 y 6 palabras "
+        "y en el idioma dominante del mensaje."
+    )
+
     def __init__(self, config_manager: ConfigManager, db_manager=None):
         self.config_manager = config_manager
         self.db_manager = db_manager
@@ -85,6 +91,43 @@ class ProviderManager:
         provider = self.get_provider(provider_name)
         return provider.chat(messages, model, settings or {})
 
+    def stream_chat(
+        self,
+        provider_name: str,
+        messages: list[dict],
+        model: str,
+        settings: dict | None = None,
+    ):
+        provider = self.get_provider(provider_name)
+        return provider.stream_chat(messages, model, settings or {})
+
+    def generate_conversation_title(
+        self,
+        provider_name: str,
+        model: str,
+        first_user_message: str,
+    ) -> str:
+        provider = self.get_provider(provider_name)
+        response = provider.chat(
+            [
+                {
+                    "role": "system",
+                    "content": self.TITLE_GENERATION_PROMPT,
+                },
+                {
+                    "role": "user",
+                    "content": (first_user_message or "").strip(),
+                },
+            ],
+            model,
+            {
+                "temperature": 0.2,
+                "max_tokens": 24,
+            },
+        )
+        raw_title = (response.get("message") or {}).get("content", "")
+        return self._sanitize_generated_title(raw_title)
+
     def get_registered_providers(self) -> list[str]:
         return list(self.providers.keys())
 
@@ -119,3 +162,17 @@ class ProviderManager:
             }
             for row in cached_rows
         ]
+
+    def _sanitize_generated_title(self, raw_title):
+        normalized = str(raw_title or "").strip()
+        if not normalized:
+            return ""
+
+        normalized = normalized.replace("\r", " ").replace("\n", " ")
+        normalized = " ".join(normalized.split())
+        normalized = normalized.strip(" \"'`#*_-:.")
+
+        if len(normalized) > 80:
+            normalized = normalized[:80].rstrip()
+
+        return normalized

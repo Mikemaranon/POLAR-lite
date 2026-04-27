@@ -117,10 +117,106 @@ class ApiEndpointTests(ApiTestCase):
         self.assertEqual(captured["messages"][0]["role"], "system")
         self.assertEqual(captured["messages"][0]["content"], "Answer creatively.")
         self.assertEqual(captured["settings"]["temperature"], 0.4)
+        self.assertEqual(captured["settings"]["max_tokens"], 300)
         self.assertEqual(payload["response"]["message"]["content"], "Aqui tienes ideas")
         self.assertEqual(len(stored_messages), 2)
         self.assertEqual(stored_messages[0]["content"], "Dame ideas")
         self.assertEqual(stored_messages[1]["provider_message_id"], "resp-1")
+
+    def test_chat_endpoint_generates_title_before_first_response(self):
+        conversation_id = self.db.conversations.create(
+            title="Nueva conversación",
+            provider="openai",
+            model="gpt-4.1",
+        )
+        calls = []
+
+        def fake_generate_title(provider, model, first_user_message):
+            calls.append(("title", provider, model, first_user_message))
+            return "Computacion cuantica"
+
+        def fake_chat(provider, messages, model, settings):
+            calls.append(("chat", provider, model, messages[-1]["content"]))
+            return {
+                "provider": provider,
+                "model": model,
+                "message": {
+                    "role": "assistant",
+                    "content": "La computacion cuantica usa qubits",
+                },
+                "message_id": "resp-title-1",
+                "usage": {},
+                "finish_reason": "stop",
+                "raw": {},
+            }
+
+        self.model_manager.generate_conversation_title = fake_generate_title
+        self.model_manager.chat = fake_chat
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "conversation_id": conversation_id,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "Explicame la computacion cuantica",
+                    }
+                ],
+            },
+            headers=self.auth_headers,
+        )
+        payload = response.get_json()
+        conversation = self.db.conversations.get(conversation_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(calls[0][0], "title")
+        self.assertEqual(calls[1][0], "chat")
+        self.assertEqual(calls[0][1:], ("openai", "gpt-4.1", "Explicame la computacion cuantica"))
+        self.assertEqual(conversation["title"], "Computacion cuantica")
+        self.assertEqual(payload["conversation"]["title"], "Computacion cuantica")
+
+    def test_chat_endpoint_keeps_responding_if_title_generation_fails(self):
+        conversation_id = self.db.conversations.create(
+            title="Nueva conversación",
+            provider="mlx",
+            model="gemma-3",
+        )
+
+        def failing_generate_title(provider, model, first_user_message):
+            raise ProviderUnavailableError("MLX offline", provider="mlx")
+
+        def fake_chat(provider, messages, model, settings):
+            return {
+                "provider": provider,
+                "model": model,
+                "message": {
+                    "role": "assistant",
+                    "content": "Seguimos respondiendo",
+                },
+                "message_id": None,
+                "usage": {},
+                "finish_reason": "stop",
+                "raw": {},
+            }
+
+        self.model_manager.generate_conversation_title = failing_generate_title
+        self.model_manager.chat = fake_chat
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "conversation_id": conversation_id,
+                "messages": [{"role": "user", "content": "Hola"}],
+            },
+            headers=self.auth_headers,
+        )
+        payload = response.get_json()
+        conversation = self.db.conversations.get(conversation_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["response"]["message"]["content"], "Seguimos respondiendo")
+        self.assertEqual(conversation["title"], "Nueva conversación")
 
     def test_chat_endpoint_persists_user_message_even_when_provider_fails(self):
         conversation_id = self.db.conversations.create(
@@ -209,6 +305,100 @@ class ApiEndpointTests(ApiTestCase):
             ],
         )
 
+    def test_chat_endpoint_streams_and_persists_assistant_message(self):
+        conversation_id = self.db.conversations.create(
+            title="Streaming",
+            provider="openai",
+            model="gpt-4.1",
+        )
+        captured = {}
+
+        def fake_stream_chat(provider, messages, model, settings):
+            captured["provider"] = provider
+            captured["messages"] = messages
+            captured["model"] = model
+            captured["settings"] = settings
+            yield {"type": "delta", "delta": "Hola"}
+            yield {"type": "delta", "delta": " mundo"}
+            yield {
+                "type": "response",
+                "response": {
+                    "provider": provider,
+                    "model": model,
+                    "message": {
+                        "role": "assistant",
+                        "content": "Hola mundo",
+                    },
+                    "message_id": "resp-stream-1",
+                    "usage": {"completion_tokens": 2},
+                    "finish_reason": "stop",
+                    "raw": {"streamed": True},
+                },
+            }
+
+        self.model_manager.stream_chat = fake_stream_chat
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "conversation_id": conversation_id,
+                "messages": [{"role": "user", "content": "Saluda"}],
+                "stream": True,
+            },
+            headers=self.auth_headers,
+            buffered=True,
+        )
+
+        payload = response.get_data(as_text=True)
+        stored_messages = self.db.messages.for_conversation(conversation_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/event-stream", response.content_type)
+        self.assertEqual(captured["provider"], "openai")
+        self.assertEqual(captured["model"], "gpt-4.1")
+        self.assertIn("event: start", payload)
+        self.assertIn("event: delta", payload)
+        self.assertIn('"delta": "Hola"', payload)
+        self.assertIn("event: end", payload)
+        self.assertIn('"content": "Hola mundo"', payload)
+        self.assertIn('"conversation"', payload)
+        self.assertEqual(len(stored_messages), 2)
+        self.assertEqual(stored_messages[1]["content"], "Hola mundo")
+        self.assertEqual(stored_messages[1]["provider_message_id"], "resp-stream-1")
+
+    def test_chat_endpoint_streams_error_event_when_provider_fails(self):
+        conversation_id = self.db.conversations.create(
+            title="Streaming broken",
+            provider="mlx",
+            model="mlx-community/gemma-3-4b-it-4bit",
+        )
+
+        def failing_stream_chat(provider, messages, model, settings):
+            raise ProviderUnavailableError("MLX offline", provider="mlx")
+            yield
+
+        self.model_manager.stream_chat = failing_stream_chat
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "conversation_id": conversation_id,
+                "messages": [{"role": "user", "content": "Guarda esto"}],
+                "stream": True,
+            },
+            headers=self.auth_headers,
+            buffered=True,
+        )
+
+        payload = response.get_data(as_text=True)
+        stored_messages = self.db.messages.for_conversation(conversation_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: error", payload)
+        self.assertIn("MLX offline", payload)
+        self.assertEqual(len(stored_messages), 1)
+        self.assertEqual(stored_messages[0]["content"], "Guarda esto")
+
     def test_settings_endpoint_persists_api_key(self):
         write_response = self.client.post(
             "/api/settings",
@@ -257,6 +447,55 @@ class ApiEndpointTests(ApiTestCase):
         self.assertEqual(profile["tags"], ["code", "review"])
         self.assertEqual(profile["temperature"], 0.5)
         self.assertTrue(profile["is_default"])
+
+    def test_profile_allows_up_to_ten_tags(self):
+        response = self.client.post(
+            "/api/profiles",
+            json={
+                "name": "Dense profile",
+                "tags": [
+                    "analysis",
+                    "docs",
+                    "frontend",
+                    "backend",
+                    "testing",
+                    "ux",
+                    "local",
+                    "cloud",
+                    "agents",
+                    "python",
+                ],
+            },
+            headers=self.auth_headers,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.get_json()["profile"]["tags"]), 10)
+
+    def test_profile_rejects_more_than_ten_tags(self):
+        response = self.client.post(
+            "/api/profiles",
+            json={
+                "name": "Too many",
+                "tags": [
+                    "one",
+                    "two",
+                    "three",
+                    "four",
+                    "five",
+                    "six",
+                    "seven",
+                    "eight",
+                    "nine",
+                    "ten",
+                    "eleven",
+                ],
+            },
+            headers=self.auth_headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("máximo de 10", response.get_json()["error"])
 
     def test_profile_can_be_deleted(self):
         profile_id = self.db.profiles.create(

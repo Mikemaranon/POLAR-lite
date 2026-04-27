@@ -1,7 +1,10 @@
 import { elements } from "./dom.js";
+import { renderMarkdown } from "./markdown.js";
 import { state } from "./state.js";
 
 const CLOUD_PROVIDERS = new Set(["openai", "anthropic", "google"]);
+export const MAX_PROFILE_TAGS = 10;
+export const PROFILE_SETTINGS_PREVIEW_TAGS = 4;
 const ROOT_PROVIDER_LABELS = {
     cloud: "Cloud",
     mlx: "MLX",
@@ -32,17 +35,31 @@ export function createEmptyListItem(message) {
 }
 
 
+export function createMetaChipsMarkup(chips) {
+    return chips.map((chip) => `
+        <span class="selection-chip selection-chip--static" data-group="${escapeHtml(chip.group)}">
+            <span class="selection-chip__group">${escapeHtml(chip.label)}</span>
+            <span class="selection-chip__value">${escapeHtml(chip.value)}</span>
+        </span>
+    `).join("");
+}
+
+
 export function createMessageMarkup(role, content) {
     const isUser = role === "user";
     const roleLabel = isUser ? "Tú" : "Asistente";
     const avatar = isUser ? "YOU" : "AI";
+    const contentClass = isUser ? "message__content--plain" : "message__content--markdown";
+    const renderedContent = isUser
+        ? escapeHtml(content || "")
+        : renderMarkdown(content || "");
 
     return `
         <article class="message message--${isUser ? "user" : "assistant"}">
             <div class="message__avatar">${avatar}</div>
             <div class="message__card">
                 <div class="message__meta">${roleLabel}</div>
-                <div class="message__content">${escapeHtml(content || "")}</div>
+                <div class="message__content ${contentClass}" data-message-content="true">${renderedContent}</div>
             </div>
         </article>
     `;
@@ -135,12 +152,15 @@ export function getActualProviderFromConversation() {
 
 
 export function getRootProviderForActualProvider(provider) {
+    if (!provider) {
+        return "mlx";
+    }
+
     if (isCloudProvider(provider)) {
         return "cloud";
     }
 
-    return provider
-        || "mlx";
+    return provider;
 }
 
 
@@ -169,8 +189,9 @@ export function getSelectedModel() {
 }
 
 
-export function isCloudProvider(provider = getSelectedProvider()) {
-    return CLOUD_PROVIDERS.has(provider);
+export function isCloudProvider(provider) {
+    const providerToCheck = provider || getSelectedProvider();
+    return CLOUD_PROVIDERS.has(providerToCheck);
 }
 
 
@@ -370,6 +391,55 @@ export function appendTypingMessage() {
 
 export function removeTypingMessage() {
     document.querySelector("[data-typing-message='true']")?.remove();
+}
+
+
+export function appendStreamingAssistantMessage() {
+    elements.emptyState.hidden = true;
+    elements.messagesContainer.hidden = false;
+    elements.messagesContainer.insertAdjacentHTML(
+        "beforeend",
+        `
+            <article class="message message--assistant" data-streaming-message="true">
+                <div class="message__avatar">AI</div>
+                <div class="message__card">
+                    <div class="message__meta">Asistente</div>
+                    <div class="message__content message__content--markdown" data-message-content="true"></div>
+                </div>
+            </article>
+        `
+    );
+    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+}
+
+
+export function updateStreamingAssistantMessage(content) {
+    const contentNode = document.querySelector(
+        "[data-streaming-message='true'] [data-message-content='true']"
+    );
+
+    if (!contentNode) {
+        return;
+    }
+
+    contentNode.innerHTML = renderMarkdown(content || "");
+    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+}
+
+
+export function finalizeStreamingAssistantMessage(content) {
+    const streamingNode = document.querySelector("[data-streaming-message='true']");
+    if (!streamingNode) {
+        return;
+    }
+
+    updateStreamingAssistantMessage(content);
+    streamingNode.removeAttribute("data-streaming-message");
+}
+
+
+export function removeStreamingAssistantMessage() {
+    document.querySelector("[data-streaming-message='true']")?.remove();
 }
 
 

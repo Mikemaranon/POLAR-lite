@@ -41,15 +41,7 @@ class OllamaProvider(ModelProvider):
         return models
 
     def chat(self, messages: list[dict], model: str, settings: dict | None = None) -> dict:
-        payload = {
-            "model": model,
-            "messages": self.normalize_messages(messages),
-            "stream": False,
-        }
-
-        options = self._build_options(settings)
-        if options:
-            payload["options"] = options
+        payload = self._build_chat_payload(messages, model, settings, stream=False)
 
         response = self.http_client.post_json(
             f"{self.config.ollama_base_url}/chat",
@@ -72,6 +64,69 @@ class OllamaProvider(ModelProvider):
             finish_reason=response.get("done_reason"),
             raw_response=response,
         )
+
+    def stream_chat(self, messages: list[dict], model: str, settings: dict | None = None):
+        payload = self._build_chat_payload(messages, model, settings, stream=True)
+        content_parts = []
+        finish_reason = "stop"
+        usage = {}
+        response_model = model
+        chunk_count = 0
+
+        for chunk in self.http_client.stream_json_lines(
+            f"{self.config.ollama_base_url}/chat",
+            payload,
+            headers=self._build_headers(),
+            provider_name=self.provider_name,
+        ):
+            chunk_count += 1
+            self._raise_if_error_response(chunk, model=model)
+            response_model = chunk.get("model", response_model)
+
+            message = chunk.get("message") or {}
+            text = message.get("content") or ""
+            if text:
+                content_parts.append(text)
+                yield {
+                    "type": "delta",
+                    "delta": text,
+                }
+
+            if chunk.get("done"):
+                finish_reason = chunk.get("done_reason") or finish_reason
+                usage = {
+                    "prompt_tokens": chunk.get("prompt_eval_count"),
+                    "completion_tokens": chunk.get("eval_count"),
+                    "total_duration": chunk.get("total_duration"),
+                    "load_duration": chunk.get("load_duration"),
+                }
+
+        yield {
+            "type": "response",
+            "response": self.normalize_chat_response(
+                model=response_model,
+                content="".join(content_parts),
+                usage=usage,
+                finish_reason=finish_reason,
+                raw_response={
+                    "streamed": True,
+                    "chunk_count": chunk_count,
+                },
+            ),
+        }
+
+    def _build_chat_payload(self, messages, model, settings, *, stream):
+        payload = {
+            "model": model,
+            "messages": self.normalize_messages(messages),
+            "stream": stream,
+        }
+
+        options = self._build_options(settings)
+        if options:
+            payload["options"] = options
+
+        return payload
 
     def _build_headers(self):
         api_key = self.get_setting("ollama_api_key", self.config.ollama_api_key)

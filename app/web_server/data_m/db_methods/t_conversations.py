@@ -82,6 +82,17 @@ class ConversationsTable:
             (conversation_id,)
         )
 
+    def rename(self, conversation_id, title):
+        self.db.execute(
+            """
+            UPDATE conversations
+            SET title = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (title, conversation_id)
+        )
+
     def delete(self, conversation_id):
         self.db.execute(
             "DELETE FROM conversations WHERE id = ?",

@@ -27,6 +27,26 @@ class ModelProvider(ABC):
     def chat(self, messages: list[dict], model: str, settings: dict | None = None) -> dict:
         raise NotImplementedError
 
+    def stream_chat(
+        self,
+        messages: list[dict],
+        model: str,
+        settings: dict | None = None,
+    ):
+        response = self.chat(messages, model, settings)
+        content = (response.get("message") or {}).get("content", "")
+
+        if content:
+            yield {
+                "type": "delta",
+                "delta": content,
+            }
+
+        yield {
+            "type": "response",
+            "response": response,
+        }
+
     def get_setting(self, key: str, default=None):
         if not self.db_manager:
             return default

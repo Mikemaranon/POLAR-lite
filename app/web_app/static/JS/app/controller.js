@@ -1,11 +1,13 @@
-import { createConversation, createProfile, createProject, deleteConversation, deleteProfile, deleteProject, persistSetting, sendChat, updateConversation, updateProfile, updateProject } from "./api.js";
+import { createConversation, createProfile, createProject, deleteConversation, deleteProfile, deleteProject, persistSetting, sendChat, sendChatStream, updateConversation, updateProfile, updateProject } from "./api.js";
 import { confirmAction, requestProjectDetails } from "./dialogs.js";
 import { elements } from "./dom.js";
 import { populateSettingsForm, renderAll, renderConversationHeader, renderConversations, renderDocumentsFileList, renderMessages, renderProfilePicker, renderProviderControls, renderSettingsProfilesManager } from "./render.js";
 import { loadConversationDetail, loadConversations, loadModels, loadProfiles, loadProjects, loadSettings } from "./store.js";
 import { state } from "./state.js";
 import {
+    MAX_PROFILE_TAGS,
     appendTypingMessage,
+    appendStreamingAssistantMessage,
     autoResizeComposer,
     buildConversationTitle,
     closeChatSettingsModal,
@@ -25,10 +27,13 @@ import {
     openProfileModal,
     openProjectCustomizeModal,
     readCloudApiKeyMap,
+    removeStreamingAssistantMessage,
     removeTypingMessage,
     setLoading,
     showStatus,
+    finalizeStreamingAssistantMessage,
     syncComposerAvailability,
+    updateStreamingAssistantMessage,
 } from "./utils.js";
 import { delete_token, getToken, loadPage, send_API_request } from "../SERVER_CONN/token-handler.js";
 
@@ -112,6 +117,7 @@ export function bindUI() {
         });
     });
     document.addEventListener("click", handleDocumentClick);
+    document.addEventListener("focusin", handleDocumentFocusIn);
     document.addEventListener("input", handleDocumentInput);
 }
 
@@ -178,16 +184,38 @@ async function handleComposerSubmit(event) {
         autoResizeComposer();
         appendTypingMessage();
 
-        const payload = await sendChat({
+        let streamingAssistantMessage = null;
+        const payload = await sendChatStream({
             conversation_id: conversationId,
             messages: requestMessages,
             provider: getActualProvider(),
             model: getSelectedModel(),
             profile_id: getSelectedProfileId(),
+        }, {
+            onDelta(delta) {
+                if (!streamingAssistantMessage) {
+                    removeTypingMessage();
+                    streamingAssistantMessage = {
+                        role: "assistant",
+                        content: "",
+                    };
+                    state.activeMessages.push(streamingAssistantMessage);
+                    appendStreamingAssistantMessage();
+                }
+
+                streamingAssistantMessage.content += delta;
+                updateStreamingAssistantMessage(streamingAssistantMessage.content);
+            },
         });
 
         removeTypingMessage();
-        state.activeMessages.push(payload.response.message);
+        if (streamingAssistantMessage) {
+            streamingAssistantMessage.content = payload.message.content;
+            finalizeStreamingAssistantMessage(payload.message.content);
+        } else {
+            state.activeMessages.push(payload.message);
+            renderMessages();
+        }
         state.activeConversation = {
             ...(state.activeConversation || {}),
             id: conversationId,
@@ -203,10 +231,17 @@ async function handleComposerSubmit(event) {
         });
         await loadConversations();
         renderConversations(handleConversationSelect, handleConversationDelete);
-        renderMessages();
         renderConversationHeader();
+
+        if (["length", "max_tokens"].includes(payload.finish_reason)) {
+            showStatus("La respuesta se detuvo por límite de tokens del proveedor o del modelo.", true);
+        }
     } catch (error) {
         removeTypingMessage();
+        if (state.activeMessages[state.activeMessages.length - 1]?.role === "assistant") {
+            state.activeMessages.pop();
+        }
+        removeStreamingAssistantMessage();
         renderMessages();
         showStatus(error.message || "No se pudo enviar el mensaje.", true);
     } finally {
@@ -225,6 +260,11 @@ function handleComposerKeyDown(event) {
 
 function handleDocumentKeyDown(event) {
     if (event.key !== "Escape") {
+        return;
+    }
+
+    if (closeProfilePicker()) {
+        event.stopPropagation();
         return;
     }
 
@@ -480,8 +520,8 @@ async function handleProfileSubmit(event) {
         showStatus("El perfil necesita un nombre.", true);
         return;
     }
-    if (profilePayload.tags.length > 2) {
-        showStatus("Las etiquetas admiten un máximo de 2 elementos.", true);
+    if (profilePayload.tags.length > MAX_PROFILE_TAGS) {
+        showStatus(`Las etiquetas admiten un máximo de ${MAX_PROFILE_TAGS} elementos.`, true);
         return;
     }
 
@@ -677,12 +717,6 @@ function formatFileSize(size) {
 
 
 function handleDocumentClick(event) {
-    const trigger = event.target.closest("#profile-picker-trigger");
-    if (trigger) {
-        toggleProfilePicker();
-        return;
-    }
-
     const option = event.target.closest("[data-profile-option]");
     if (option) {
         handleProfileOptionSelect(Number(option.dataset.profileOption));
@@ -713,54 +747,78 @@ function handleDocumentClick(event) {
 }
 
 
+function handleDocumentFocusIn(event) {
+    if (event.target.id !== "profile-picker-search") {
+        return;
+    }
+
+    openProfilePicker();
+    filterProfileOptions(event.target.value);
+}
+
+
 function handleDocumentInput(event) {
     if (event.target.id !== "profile-picker-search") {
         return;
     }
 
+    openProfilePicker();
     filterProfileOptions(event.target.value);
 }
 
 
-function toggleProfilePicker() {
+function openProfilePicker() {
     const panel = document.getElementById("profile-picker-panel");
-    const trigger = document.getElementById("profile-picker-trigger");
     const search = document.getElementById("profile-picker-search");
 
-    if (!panel || !trigger) {
+    if (!panel) {
         return;
     }
 
-    const nextOpen = panel.hidden;
-    panel.hidden = !nextOpen;
-    trigger.setAttribute("aria-expanded", String(nextOpen));
-
-    if (nextOpen && search) {
-        search.value = "";
-        filterProfileOptions("");
-        window.setTimeout(() => search.focus({ preventScroll: true }), 0);
+    panel.hidden = false;
+    if (search) {
+        search.setAttribute("aria-expanded", "true");
     }
 }
 
 
 function closeProfilePicker() {
     const panel = document.getElementById("profile-picker-panel");
-    const trigger = document.getElementById("profile-picker-trigger");
+    const search = document.getElementById("profile-picker-search");
 
     if (!panel || panel.hidden) {
-        return;
+        return false;
     }
 
     panel.hidden = true;
-    trigger?.setAttribute("aria-expanded", "false");
+    search?.setAttribute("aria-expanded", "false");
+    return true;
 }
 
 
 function filterProfileOptions(query) {
     const normalized = String(query || "").trim().toLowerCase();
+    let visibleCount = 0;
+    let totalOptions = 0;
+
     document.querySelectorAll("[data-profile-option]").forEach((node) => {
-        node.hidden = normalized ? !node.textContent.toLowerCase().includes(normalized) : false;
+        totalOptions += 1;
+        const matches = normalized ? node.textContent.toLowerCase().includes(normalized) : true;
+        node.hidden = !matches;
+        if (matches) {
+            visibleCount += 1;
+        }
     });
+
+    const emptyNode = document.getElementById("profile-picker-no-results");
+    const resultsNode = document.getElementById("profile-picker-results");
+
+    if (resultsNode) {
+        resultsNode.hidden = totalOptions > 0 && visibleCount === 0;
+    }
+    if (emptyNode) {
+        emptyNode.hidden = visibleCount !== 0 || totalOptions === 0;
+    }
 }
 
 
@@ -917,7 +975,7 @@ async function handleSettingsProfileDelete(profileId) {
 
 function populateProfileModal(profile = null) {
     const isEditing = Boolean(profile);
-    const tags = Array.isArray(profile?.tags) ? profile.tags.slice(0, 2).join(", ") : "";
+    const tags = Array.isArray(profile?.tags) ? profile.tags.slice(0, MAX_PROFILE_TAGS).join(", ") : "";
 
     elements.profileModalEyebrow.textContent = isEditing ? "Editar perfil" : "Perfil";
     elements.profileModalTitle.textContent = isEditing ? profile.name : "Crear perfil";

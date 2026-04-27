@@ -10,9 +10,17 @@
     --accent: #1c8b59;
     --accent-strong: #166d45;
     --accent-soft: rgba(28, 139, 89, 0.12);
+    --accent-ambient: rgba(28, 139, 89, 0.18);
     --shadow: 0 18px 60px rgba(24, 25, 20, 0.12);
     --shadow-modal: 0 28px 56px rgba(24, 25, 20, 0.18);
+    --shadow-chip: 0 10px 24px rgba(31, 45, 34, 0.08);
     --overlay: rgba(22, 24, 20, 0.42);
+    --chip-divider: rgba(82, 99, 88, 0.22);
+    --meta-chip-bg: rgba(255, 255, 255, 0.84);
+    --meta-chip-border: rgba(132, 171, 144, 0.36);
+    --meta-chip-provider: #3f7b54;
+    --meta-chip-model: #8f612b;
+    --meta-chip-profile: #2b7249;
     --radius-xl: 28px;
     --radius-lg: 22px;
     --radius-md: 16px;

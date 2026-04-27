@@ -4,6 +4,8 @@ from api_m.domains.base_api import BaseAPI
 
 
 class ProfilesAPI(BaseAPI):
+    MAX_TAGS = 10
+
     def register(self):
         self.app.add_url_rule("/api/profiles", view_func=self.handle_profiles_get, methods=["GET"])
         self.app.add_url_rule("/api/profiles", view_func=self.handle_profiles_post, methods=["POST"])
@@ -128,7 +130,7 @@ class ProfilesAPI(BaseAPI):
             normalized_tags.append(normalized)
             seen.add(normalized_key)
 
-        if len(normalized_tags) > 2:
-            raise ValueError("tags admite un máximo de 2 elementos")
+        if len(normalized_tags) > self.MAX_TAGS:
+            raise ValueError(f"tags admite un máximo de {self.MAX_TAGS} elementos")
 
         return normalized_tags
