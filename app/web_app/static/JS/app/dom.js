@@ -1,4 +1,8 @@
 export const elements = {
+    appShell: document.querySelector(".app-shell"),
+    appSidebar: document.getElementById("app-sidebar"),
+    sidebarBackdrop: document.getElementById("sidebar-backdrop"),
+    sidebarToggleButton: document.getElementById("sidebar-toggle-button"),
     composerShell: document.querySelector(".composer-shell"),
     composerForm: document.getElementById("composer-form"),
     composerInput: document.getElementById("composer-input"),

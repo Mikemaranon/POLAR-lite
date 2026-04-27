@@ -32,10 +32,24 @@
 
 .workspace__topbar {
     display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: none;
+}
+
+.workspace__topbar-row {
+    display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 18px;
-    flex: none;
+}
+
+.workspace__topbar-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    min-width: 0;
+    flex: 1;
 }
 
 .workspace__identity {
@@ -55,16 +69,22 @@
 
 .workspace__meta {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 10px;
-    margin-top: 14px;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
 }
 
 .workspace__header-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 10px;
     flex: none;
+    flex-shrink: 0;
 }
 
 .workspace__settings-button {
@@ -79,6 +99,38 @@
     min-width: 140px;
     padding: 12px 16px;
     background: transparent;
+}
+
+.workspace__meta::-webkit-scrollbar {
+    height: 6px;
+}
+
+.sidebar-toggle {
+    display: none;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+}
+
+.sidebar-toggle__lines {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sidebar-toggle__lines span {
+    display: block;
+    width: 16px;
+    height: 1.5px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.sidebar-backdrop {
+    display: none;
 }
 
 .chat-surface {
@@ -118,7 +170,20 @@
 }
 
 .composer__send {
-    min-width: 92px;
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    align-self: flex-end;
+}
+
+.composer__send svg {
+    width: 18px;
+    height: 18px;
 }
 
 .empty-state {
@@ -186,6 +251,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: none;
     gap: 0;
     padding: 8px 12px;
     border-radius: var(--radius-pill);

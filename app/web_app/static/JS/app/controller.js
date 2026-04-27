@@ -14,6 +14,7 @@ import {
     closeDocumentsModal,
     closeProfileModal,
     closeProjectCustomizeModal,
+    disableMessagesAutoScroll,
     getActualProvider,
     getActiveProject,
     getDefaultProfileId,
@@ -27,15 +28,25 @@ import {
     openProfileModal,
     openProjectCustomizeModal,
     readCloudApiKeyMap,
+    enableMessagesAutoScroll,
     removeStreamingAssistantMessage,
     removeTypingMessage,
     setLoading,
     showStatus,
+    syncMessagesAutoScrollState,
     finalizeStreamingAssistantMessage,
     syncComposerAvailability,
     updateStreamingAssistantMessage,
 } from "./utils.js";
 import { delete_token, getToken, loadPage, send_API_request } from "../SERVER_CONN/token-handler.js";
+
+const mobileSidebarMediaQuery = window.matchMedia("(max-width: 1120px)");
+const handleSidebarViewportChange = () => syncSidebarVisibility();
+const handleMessagesWheel = (event) => {
+    if (event.deltaY < 0) {
+        disableMessagesAutoScroll();
+    }
+};
 
 
 export async function bootApp() {
@@ -48,6 +59,7 @@ export async function bootApp() {
     ]);
 
     state.workspaceMode = "home";
+    syncSidebarVisibility();
 
     renderAll({
         onProjectSelect: handleProjectSelect,
@@ -58,6 +70,8 @@ export async function bootApp() {
 
 
 export function bindUI() {
+    elements.sidebarToggleButton?.addEventListener("click", toggleSidebar);
+    elements.sidebarBackdrop?.addEventListener("click", closeSidebar);
     elements.composerForm.addEventListener("submit", handleComposerSubmit);
     elements.composerInput.addEventListener("keydown", handleComposerKeyDown);
     elements.composerInput.addEventListener("input", autoResizeComposer);
@@ -87,6 +101,8 @@ export function bindUI() {
     elements.documentsDropzone?.addEventListener("dragover", handleDocumentsDragOver);
     elements.documentsDropzone?.addEventListener("dragleave", handleDocumentsDragLeave);
     elements.documentsDropzone?.addEventListener("drop", handleDocumentsDrop);
+    elements.messagesContainer?.addEventListener("scroll", syncMessagesAutoScrollState, { passive: true });
+    elements.messagesContainer?.addEventListener("wheel", handleMessagesWheel, { passive: true });
     elements.logoutButton.addEventListener("click", handleLogout);
     elements.chatSettingsModal.addEventListener("click", (event) => {
         if (event.target.dataset.closeModal === "true") {
@@ -109,6 +125,11 @@ export function bindUI() {
         }
     });
     document.addEventListener("keydown", handleDocumentKeyDown);
+    if (typeof mobileSidebarMediaQuery.addEventListener === "function") {
+        mobileSidebarMediaQuery.addEventListener("change", handleSidebarViewportChange);
+    } else if (typeof mobileSidebarMediaQuery.addListener === "function") {
+        mobileSidebarMediaQuery.addListener(handleSidebarViewportChange);
+    }
     document.querySelectorAll("[data-prompt]").forEach((element) => {
         element.addEventListener("click", () => {
             elements.composerInput.value = element.dataset.prompt || "";
@@ -143,6 +164,7 @@ async function handleProjectSelect(projectId, element) {
         onConversationSelect: handleConversationSelect,
         onConversationDelete: handleConversationDelete,
     });
+    closeSidebarOnMobile();
 }
 
 
@@ -153,6 +175,7 @@ async function handleConversationSelect(conversationId) {
         onConversationSelect: handleConversationSelect,
         onConversationDelete: handleConversationDelete,
     });
+    closeSidebarOnMobile();
 }
 
 
@@ -179,6 +202,7 @@ async function handleComposerSubmit(event) {
         const requestMessages = [...state.activeMessages, { role: "user", content }];
 
         state.activeMessages = requestMessages;
+        enableMessagesAutoScroll();
         renderMessages();
         elements.composerInput.value = "";
         autoResizeComposer();
@@ -242,7 +266,7 @@ async function handleComposerSubmit(event) {
             state.activeMessages.pop();
         }
         removeStreamingAssistantMessage();
-        renderMessages();
+        renderMessages({ preserveViewport: true });
         showStatus(error.message || "No se pudo enviar el mensaje.", true);
     } finally {
         setLoading(false);
@@ -260,6 +284,11 @@ function handleComposerKeyDown(event) {
 
 function handleDocumentKeyDown(event) {
     if (event.key !== "Escape") {
+        return;
+    }
+
+    if (closeSidebar()) {
+        event.stopPropagation();
         return;
     }
 
@@ -344,6 +373,7 @@ async function createConversationFromUI() {
         });
 
         await handleConversationSelect(conversationId);
+        closeSidebarOnMobile();
     } catch (error) {
         showStatus(error.message || "No se pudo crear la conversación.", true);
     }
@@ -403,6 +433,7 @@ async function handleNewProject() {
             onConversationSelect: handleConversationSelect,
             onConversationDelete: handleConversationDelete,
         });
+        closeSidebarOnMobile();
     } catch (error) {
         showStatus(error.message || "No se pudo crear el proyecto.", true);
     }
@@ -440,6 +471,7 @@ async function handleNewProjectChat() {
             onConversationSelect: handleConversationSelect,
             onConversationDelete: handleConversationDelete,
         });
+        closeSidebarOnMobile();
     } catch (error) {
         showStatus(error.message || "No se pudo crear el chat del proyecto.", true);
     }
@@ -453,6 +485,7 @@ function handleWorkspaceSettingsOpen() {
         onConversationSelect: handleConversationSelect,
         onConversationDelete: handleConversationDelete,
     });
+    closeSidebarOnMobile();
 }
 
 
@@ -989,4 +1022,78 @@ function populateProfileModal(profile = null) {
     elements.profileTopPInput.value = String(profile?.top_p ?? 1);
     elements.profileMaxTokensInput.value = String(profile?.max_tokens ?? 2048);
     elements.profileDefaultInput.checked = Boolean(profile?.is_default);
+}
+
+
+function isMobileSidebarViewport() {
+    return mobileSidebarMediaQuery.matches;
+}
+
+
+function syncSidebarToggleAria() {
+    const isOpen = Boolean(state.isSidebarOpen && isMobileSidebarViewport());
+
+    if (elements.sidebarToggleButton) {
+        elements.sidebarToggleButton.setAttribute("aria-expanded", String(isOpen));
+        elements.sidebarToggleButton.setAttribute(
+            "aria-label",
+            isOpen ? "Cerrar navegación lateral" : "Abrir navegación lateral"
+        );
+    }
+
+    if (elements.appSidebar) {
+        elements.appSidebar.setAttribute("aria-hidden", String(!isOpen && isMobileSidebarViewport()));
+    }
+}
+
+
+function syncSidebarVisibility() {
+    if (!isMobileSidebarViewport()) {
+        state.isSidebarOpen = false;
+    }
+
+    elements.appShell?.classList.toggle("is-sidebar-open", Boolean(state.isSidebarOpen && isMobileSidebarViewport()));
+    document.body.classList.toggle("is-sidebar-open", Boolean(state.isSidebarOpen && isMobileSidebarViewport()));
+    syncSidebarToggleAria();
+}
+
+
+function openSidebar() {
+    if (!isMobileSidebarViewport()) {
+        return false;
+    }
+
+    state.isSidebarOpen = true;
+    syncSidebarVisibility();
+    return true;
+}
+
+
+function closeSidebar() {
+    if (!state.isSidebarOpen) {
+        return false;
+    }
+
+    state.isSidebarOpen = false;
+    syncSidebarVisibility();
+    return true;
+}
+
+
+function toggleSidebar() {
+    if (state.isSidebarOpen) {
+        closeSidebar();
+        return;
+    }
+
+    openSidebar();
+}
+
+
+function closeSidebarOnMobile() {
+    if (!isMobileSidebarViewport()) {
+        return;
+    }
+
+    closeSidebar();
 }

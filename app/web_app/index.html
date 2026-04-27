@@ -9,7 +9,15 @@
 </head>
 <body class="app-body">
     <div class="app-shell">
-        <aside class="sidebar">
+        <button
+            id="sidebar-backdrop"
+            class="sidebar-backdrop"
+            type="button"
+            aria-label="Cerrar navegación lateral"
+            tabindex="-1"
+        ></button>
+
+        <aside id="app-sidebar" class="sidebar" aria-label="Barra lateral">
             <div class="sidebar__inner">
                 <div class="sidebar__top">
                     <div class="brand">
@@ -98,23 +106,43 @@
 
         <main class="workspace">
             <header class="workspace__topbar">
-                <div class="workspace__identity">
-                    <p id="workspace-eyebrow" class="workspace__eyebrow">Chat</p>
-                    <h2 id="conversation-title" class="workspace__title">Nueva conversación</h2>
-                    <div id="conversation-meta" class="workspace__meta" hidden></div>
-                    <p id="conversation-subtitle" class="workspace__subtitle">
-                        Abre ajustes para elegir proveedor, modelo y perfil antes de empezar.
-                    </p>
+                <div class="workspace__topbar-row">
+                    <div class="workspace__topbar-main">
+                        <button
+                            id="sidebar-toggle-button"
+                            class="icon-button sidebar-toggle"
+                            type="button"
+                            aria-label="Abrir navegación lateral"
+                            aria-controls="app-sidebar"
+                            aria-expanded="false"
+                        >
+                            <span class="sidebar-toggle__lines" aria-hidden="true">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </span>
+                        </button>
+
+                        <div class="workspace__identity">
+                            <p id="workspace-eyebrow" class="workspace__eyebrow">Chat</p>
+                            <h2 id="conversation-title" class="workspace__title">Nueva conversación</h2>
+                        </div>
+                    </div>
+
+                    <div class="workspace__header-actions">
+                        <button id="back-to-project-button" class="ghost-button workspace__back-button" type="button" hidden>
+                            Volver al proyecto
+                        </button>
+                        <button id="chat-settings-button" class="ghost-button workspace__settings-button" type="button">
+                            Ajustes del chat
+                        </button>
+                    </div>
                 </div>
 
-                <div class="workspace__header-actions">
-                    <button id="back-to-project-button" class="ghost-button workspace__back-button" type="button" hidden>
-                        Volver al proyecto
-                    </button>
-                    <button id="chat-settings-button" class="ghost-button workspace__settings-button" type="button">
-                        Ajustes del chat
-                    </button>
-                </div>
+                <div id="conversation-meta" class="workspace__meta" hidden></div>
+                <p id="conversation-subtitle" class="workspace__subtitle">
+                    Abre ajustes para elegir proveedor, modelo y perfil antes de empezar.
+                </p>
             </header>
 
             <section id="status-banner" class="status-banner" hidden></section>
@@ -273,8 +301,16 @@
                             <div id="composer-hint" class="composer__hint">
                                 `Shift + Enter` para salto de línea
                             </div>
-                            <button id="send-button" class="action-button action-button--primary composer__send" type="submit">
-                                Enviar
+                            <button
+                                id="send-button"
+                                class="action-button action-button--primary composer__send"
+                                type="submit"
+                                aria-label="Enviar"
+                                title="Enviar"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M3 20v-6l8-2-8-2V4l19 8-19 8z" fill="currentColor"></path>
+                                </svg>
                             </button>
                         </div>
                     </div>

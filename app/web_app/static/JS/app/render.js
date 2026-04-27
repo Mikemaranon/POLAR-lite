@@ -3,6 +3,8 @@ import { state } from "./state.js";
 import {
     PROFILE_SETTINGS_PREVIEW_TAGS,
     buildFallbackProviderCatalogs,
+    enableMessagesAutoScroll,
+    scrollMessagesToBottom,
     createEmptyListItem,
     createMetaChipsMarkup,
     createMessageMarkup,
@@ -282,7 +284,7 @@ export function renderProviderControls() {
 }
 
 
-export function renderMessages() {
+export function renderMessages({ preserveViewport = false } = {}) {
     const showConversation = state.workspaceMode === "conversation" && !!state.activeConversation;
     const showEmptyState = state.workspaceMode === "home";
 
@@ -291,6 +293,7 @@ export function renderMessages() {
     if (!showConversation) {
         elements.messagesContainer.hidden = true;
         elements.messagesContainer.innerHTML = "";
+        enableMessagesAutoScroll();
         return;
     }
 
@@ -298,7 +301,13 @@ export function renderMessages() {
     elements.messagesContainer.innerHTML = state.activeMessages
         .map((message) => createMessageMarkup(message.role, message.content))
         .join("");
-    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+
+    if (preserveViewport) {
+        return;
+    }
+
+    enableMessagesAutoScroll();
+    scrollMessagesToBottom();
 }
 
 
@@ -468,12 +477,6 @@ export function renderProfilePicker() {
 
     elements.profilePicker.innerHTML = `
         <div class="selection-field">
-            <div class="profile-picker__current" aria-live="polite">
-                <span class="profile-picker__trigger-copy">
-                    <strong>${escapeHtml(selectedProfile?.name || "Sin perfil activo")}</strong>
-                    <span>${escapeHtml(selectedProfile?.system_prompt || "Selecciona un perfil para este chat.")}</span>
-                </span>
-            </div>
             <div class="selection-field__search">
                 <div class="profile-picker__search-shell">
                     <label class="field field--stacked profile-picker__search-field">
@@ -496,6 +499,12 @@ export function renderProfilePicker() {
                         </div>
                     </div>
                 </div>
+            </div>
+            <div class="profile-picker__current" aria-live="polite">
+                <span class="profile-picker__trigger-copy">
+                    <strong>${escapeHtml(selectedProfile?.name || "Sin perfil activo")}</strong>
+                    <span>${escapeHtml(selectedProfile?.system_prompt || "Selecciona un perfil para este chat.")}</span>
+                </span>
             </div>
         </div>
     `;

@@ -6,6 +6,7 @@ async function handleLoginSubmit(event) {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     const errorMessage = document.getElementById("error-message");
+    errorMessage.textContent = "";
 
     try {
         const response = await login(username, password)
@@ -19,12 +20,10 @@ async function handleLoginSubmit(event) {
             loadPage("/index");
         } else {
             errorMessage.textContent = data.error || "An error occurred.";
-            errorMessage.style.display = "block";
         }
     } catch (error) {
         console.error("Error during login:", error);
         errorMessage.textContent = "Incorrect user, please try again.";
-        errorMessage.style.display = "block";
     }
 }
 

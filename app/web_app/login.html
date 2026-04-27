@@ -3,41 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POLAR lite · Login</title>
+    <title>POLAR AI · Login</title>
     <link rel="stylesheet" href="/static/CSS/login.css">
 
     <script type="module" src="/static/JS/login.js"></script>
 </head>
-<body>
-    <main class="login-layout">
-        <section class="login-hero">
-            <p class="login-hero__eyebrow">POLAR lite</p>
-            <h1>Tu workspace local para chatear con MLX, Ollama y OpenAI</h1>
-            <p class="login-hero__copy">
-                Una base ligera, privada y preparada para trabajar con proyectos, perfiles y conversaciones persistentes.
+<body class="auth-body" data-page="login">
+    <main class="auth-layout">
+        <section class="auth-card">
+            <h1>POLAR lite</h1>
+            <p class="muted">
+                Un entorno privado y ligero para trabajar con proyectos, perfiles y conversaciones persistentes desde tu propia máquina.
             </p>
-            <div class="login-hero__note">
-                Usuario inicial de desarrollo: <strong>admin</strong> · contraseña <strong>admin</strong>
-            </div>
+
+            <form id="login-form" class="form-stack">
+                <label for="username">
+                    <span>Usuario</span>
+                    <input type="text" name="username" id="username" placeholder="admin" required>
+                </label>
+
+                <label for="password">
+                    <span>Contraseña</span>
+                    <input type="password" name="password" id="password" placeholder="admin" required>
+                </label>
+
+                <div id="error-message" class="error-message" aria-live="polite"></div>
+                <button class="button button--primary" type="submit">Entrar</button>
+            </form>
         </section>
 
-        <section class="login-card">
-            <div class="login-card__header">
-                <p class="login-card__eyebrow">Acceso</p>
-                <h2>Entrar a POLAR lite</h2>
+        <section class="auth-card auth-card--secondary">
+            <div class="auth-brand">
+                <a class="brand auth-brand__signature" href="/login" aria-label="POLAR AI login">
+                    <img class="brand__logo" src="/static/assets/POLAR.AI-t-small.png" alt="POLAR AI">
+                    <span class="brand__divider" aria-hidden="true"></span>
+                    <span class="brand-copy" aria-label="Local AI workspace">
+                        <span>Local</span>
+                        <span>AI</span>
+                        <span>Workspace</span>
+                    </span>
+                </a>
             </div>
 
-            <form id="login-form" class="login-form">
-                <label for="username">Usuario</label>
-                <input type="text" name="username" id="username" placeholder="admin" required>
+            <div class="section-heading section-heading--compact">
+                <div>
+                    <p class="eyebrow">Acceso local</p>
+                </div>
+            </div>
 
-                <label for="password">Contraseña</label>
-                <input type="password" name="password" id="password" placeholder="admin" required>
+            <ul class="credential-list">
+                <li><strong>Administrador</strong>: <code>admin</code> / <code>admin</code></li>
+            </ul>
 
-                <button type="submit">Continuar</button>
-            </form>
-
-            <div class="error-message" id="error-message"></div>
+            <div class="auth-note">
+                Cambia entre proveedores, conserva conversaciones y trabaja con perfiles de sistema desde una interfaz local-first.
+            </div>
         </section>
     </main>
 </body>

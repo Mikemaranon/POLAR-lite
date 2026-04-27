@@ -44,6 +44,7 @@
     flex: 1 1 auto;
     background: transparent;
     padding: 16px 0;
+    padding-right: 20px;
 }
 
 .message--user .message__card {

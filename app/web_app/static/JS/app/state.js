@@ -17,6 +17,8 @@ export const state = {
     profileModalProfileId: null,
     profileModalContext: "settings",
     activeMessages: [],
+    messagesAutoScrollEnabled: true,
     stagedDocuments: [],
     loading: false,
+    isSidebarOpen: false,
 };

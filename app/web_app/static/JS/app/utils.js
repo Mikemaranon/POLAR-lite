@@ -10,6 +10,7 @@ const ROOT_PROVIDER_LABELS = {
     mlx: "MLX",
     ollama: "Ollama",
 };
+const MESSAGES_AUTO_SCROLL_THRESHOLD = 24;
 const PROVIDER_LABELS = {
     anthropic: "Anthropic",
     cloud: "Cloud",
@@ -63,6 +64,51 @@ export function createMessageMarkup(role, content) {
             </div>
         </article>
     `;
+}
+
+
+export function isMessagesContainerNearBottom() {
+    const container = elements.messagesContainer;
+
+    if (!container || container.hidden) {
+        return true;
+    }
+
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return distanceToBottom <= MESSAGES_AUTO_SCROLL_THRESHOLD;
+}
+
+
+export function scrollMessagesToBottom() {
+    if (!elements.messagesContainer) {
+        return;
+    }
+
+    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+}
+
+
+export function enableMessagesAutoScroll() {
+    state.messagesAutoScrollEnabled = true;
+}
+
+
+export function disableMessagesAutoScroll() {
+    state.messagesAutoScrollEnabled = false;
+}
+
+
+export function syncMessagesAutoScrollState() {
+    state.messagesAutoScrollEnabled = isMessagesContainerNearBottom();
+}
+
+
+export function keepMessagesPinnedToBottomIfNeeded() {
+    if (!state.messagesAutoScrollEnabled) {
+        return;
+    }
+
+    scrollMessagesToBottom();
 }
 
 
@@ -385,7 +431,7 @@ export function appendTypingMessage() {
             </div>
         `
     );
-    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+    keepMessagesPinnedToBottomIfNeeded();
 }
 
 
@@ -409,7 +455,7 @@ export function appendStreamingAssistantMessage() {
             </article>
         `
     );
-    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+    keepMessagesPinnedToBottomIfNeeded();
 }
 
 
@@ -423,7 +469,7 @@ export function updateStreamingAssistantMessage(content) {
     }
 
     contentNode.innerHTML = renderMarkdown(content || "");
-    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+    keepMessagesPinnedToBottomIfNeeded();
 }
 
 
