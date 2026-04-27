@@ -1,6 +1,6 @@
 const TOKEN_KEY = "auth_token";
 
-function store_token(token) {
+export function store_token(token) {
     try {
         delete_token(); // Clear any existing token
     } catch (error) {
@@ -10,15 +10,15 @@ function store_token(token) {
     console.log("Token stored:", token);
 }
 
-function getToken() {
+export function getToken() {
     return localStorage.getItem(TOKEN_KEY);
 }
 
-function delete_token() {
+export function delete_token() {
     localStorage.removeItem(TOKEN_KEY);
 }
 
-async function login(username, password) {
+export async function login(username, password) {
     const endpoint = "/login";
     if (!username || !password) {
         throw new Error("Username and password are required.");
@@ -36,10 +36,6 @@ async function login(username, password) {
 
     try {
         const response = await fetch(endpoint, options);
-
-        if (!response.ok) {
-            throw new Error(`Request failed: ${response.status}`);
-        }
         return response;
     } catch (error) {
         console.error("Error in API request:", error);
@@ -47,7 +43,7 @@ async function login(username, password) {
     }
 }
 
-async function send_API_request(method, endpoint, body = null) {
+export async function send_API_request(method, endpoint, body = null) {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
         throw new Error("No authentication token found.");
@@ -68,25 +64,17 @@ async function send_API_request(method, endpoint, body = null) {
     console.log("Fetching:", endpoint, options);
 
     try {
-        const response = await fetch(endpoint, options);
-
-        if (!response.ok) {
-            throw new Error(`Request failed: ${response.status}`);
-        }
-        return response;
+        return await fetch(endpoint, options);
     } catch (error) {
         console.error("Error in API request:", error);
         throw error;
     }
 }
 
-async function loadPage(url) {
-    const token = getToken();
+export async function loadPage(url) {
     try {
-        const response = await send_API_request("GET", url);
-        window.location.href = response.url
+        window.location.href = url;
     } catch (error) {
         console.error("Error loading page:", error);
-        // window.location.href = "/login";
     }
 }

@@ -1,12 +1,27 @@
-# FLASK TEMPLATE
+# POLAR studio
 
-This repository is meant to be a template of how i work with my Flask applications, using my own database and user managers. 
-The structure proposed here ensures that any complex app can be created through specific modules that can be implemented in the `web_server/server.py` file the same way `data_m` and `user_m` modules are
+This project extends the original Flask template into POLAR studio, a local-first AI chat application. The codebase is now organized into three top-level folders:
+
+- `app/`: application code
+- `tests/`: domain-oriented test runners and test cases
+- `deploy/`: reserved for future deployment workflows
 
 In order to run the app, execute this:
 ```bash
-cd web_server
-python3 main.py
+source .venv/bin/activate
+python app/web_server/main.py
+```
+
+To run all test domains:
+```bash
+source .venv/bin/activate
+python tests/run_all.py
+```
+
+To run one domain only:
+```bash
+source .venv/bin/activate
+python tests/data_m/run.py
 ```
 
 sample API call:

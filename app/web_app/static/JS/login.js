@@ -1,3 +1,5 @@
+import { loadPage, login, store_token } from "./SERVER_CONN/token-handler.js";
+
 async function handleLoginSubmit(event) {
     event.preventDefault(); // Prevent default form submission
 
@@ -14,7 +16,7 @@ async function handleLoginSubmit(event) {
         if (response.ok && data.token) {
             store_token(data.token);
             console.log("token: ", data.token);
-            loadPage("/");
+            loadPage("/index");
         } else {
             errorMessage.textContent = data.error || "An error occurred.";
             errorMessage.style.display = "block";

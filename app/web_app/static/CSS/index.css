@@ -1,14 +1,9 @@
-body {
-    background-color: #f4f4f4;
-    font-family: Arial, sans-serif;
-    text-align: center;
-    padding-top: 100px;
-}
-
-h1 {
-    color: #333;
-}
-
-p {
-    color: #666;
-}
+@import url("/static/CSS/index/tokens.css");
+@import url("/static/CSS/index/base.css");
+@import url("/static/CSS/index/layout.css");
+@import url("/static/CSS/index/forms.css");
+@import url("/static/CSS/index/sidebar.css");
+@import url("/static/CSS/index/chat.css");
+@import url("/static/CSS/index/modal.css");
+@import url("/static/CSS/index/settings.css");
+@import url("/static/CSS/index/responsive.css");

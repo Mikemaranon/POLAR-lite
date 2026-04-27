@@ -38,13 +38,18 @@ class Server:
         )
 
     def ini_model_manager(self):
-        return ModelManager(self.config_manager)
+        return ModelManager(self.config_manager, self.DBManager)
 
     def ini_app_routes(self):
         return AppRoutes(self.app, self.user_manager, self.DBManager)
 
     def ini_api_manager(self):
-        return ApiManager(self.app, self.user_manager, self.DBManager)
+        return ApiManager(
+            self.app,
+            self.user_manager,
+            self.DBManager,
+            self.model_manager,
+        )
 
     def run(self):
         runtime = self.config_manager.runtime

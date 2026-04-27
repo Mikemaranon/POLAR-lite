@@ -1,0 +1,163 @@
+* {
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+html,
+body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: var(--font-ui);
+    color: var(--text);
+    background: var(--bg);
+}
+
+body.modal-open,
+body.is-modal-open {
+    overflow: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+    color: inherit;
+}
+
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.brand__eyebrow,
+.workspace__eyebrow,
+.empty-state__eyebrow,
+.modal__eyebrow {
+    margin: 0 0 4px;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.brand__title,
+.workspace__title,
+.modal__header h3,
+.empty-state h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.action-button,
+.ghost-button,
+.icon-button {
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.action-button:hover,
+.ghost-button:hover,
+.icon-button:hover {
+    transform: none;
+}
+
+.action-button {
+    padding: 11px 14px;
+    background: rgba(19, 25, 19, 0.06);
+    color: var(--text);
+    font-weight: 500;
+    border-color: rgba(19, 25, 19, 0.06);
+    border-radius: var(--radius-pill);
+}
+
+.action-button--primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.action-button--danger {
+    background: rgba(171, 63, 38, 0.08);
+    color: #8e381e;
+    border-color: rgba(171, 63, 38, 0.18);
+}
+
+.action-button--wide,
+.ghost-button--wide {
+    width: 100%;
+}
+
+.ghost-button {
+    padding: 11px 14px;
+    background: transparent;
+    color: var(--text-soft);
+    border: 1px solid var(--line);
+    font-weight: 500;
+    border-radius: var(--radius-pill);
+}
+
+.icon-button {
+    width: 42px;
+    height: 42px;
+    background: rgba(19, 25, 19, 0.04);
+    border-color: var(--line);
+    color: var(--text);
+    font-size: 1.4rem;
+    border-radius: var(--radius-pill);
+}
+
+.status-banner {
+    padding: 12px 14px;
+    background: var(--accent-soft);
+    border: 1px solid rgba(28, 139, 89, 0.18);
+    color: var(--accent-strong);
+    border-radius: var(--radius-md);
+}
+
+.status-banner.is-error {
+    background: rgba(171, 63, 38, 0.1);
+    border-color: rgba(171, 63, 38, 0.18);
+    color: #8e381e;
+}
+
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 80%, 100% {
+        opacity: 0.25;
+        transform: translateY(0);
+    }
+    40% {
+        opacity: 1;
+        transform: translateY(-4px);
+    }
+}

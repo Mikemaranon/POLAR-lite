@@ -6,12 +6,20 @@ import importlib
 from flask import jsonify
 from user_m import UserManager
 from data_m import DBManager
+from model_m import ModelManager
 
 class ApiManager:
-    def __init__(self, app, user_manager: UserManager, DBManager: DBManager):
+    def __init__(
+        self,
+        app,
+        user_manager: UserManager,
+        DBManager: DBManager,
+        model_manager: ModelManager,
+    ):
         self.app = app
         self.user_manager = user_manager
         self.DBManager = DBManager
+        self.model_manager = model_manager
         self._register_APIs()
         self._autoload_domains()
 
@@ -45,7 +53,12 @@ class ApiManager:
                     and hasattr(attr, "register")
                     and attr.__name__ != "BaseAPI"
                 ):
-                    api_instance = attr(self.app, self.user_manager, self.DBManager)
+                    api_instance = attr(
+                        self.app,
+                        self.user_manager,
+                        self.DBManager,
+                        self.model_manager,
+                    )
                     api_instance.register()
                     print(f"[API Manager] Loaded API: {attr.__name__}")
 

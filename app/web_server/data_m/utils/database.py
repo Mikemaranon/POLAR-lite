@@ -96,6 +96,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 description TEXT,
+                system_prompt TEXT DEFAULT '',
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
@@ -106,6 +107,8 @@ class Database:
             CREATE TABLE IF NOT EXISTS profiles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
+                personality TEXT DEFAULT '',
+                tags TEXT DEFAULT '',
                 system_prompt TEXT DEFAULT '',
                 temperature REAL DEFAULT 0.7,
                 top_p REAL DEFAULT 1.0,
@@ -171,3 +174,21 @@ class Database:
 
         for t in tables:
             self.execute(t)
+
+        self._ensure_column("projects", "system_prompt", "TEXT DEFAULT ''")
+        self._ensure_column("profiles", "personality", "TEXT DEFAULT ''")
+        self._ensure_column("profiles", "tags", "TEXT DEFAULT ''")
+
+    def _ensure_column(self, table_name, column_name, column_definition):
+        _, rows = self.execute(
+            f"PRAGMA table_info({table_name})",
+            fetchall=True
+        )
+        existing_columns = {row[1] for row in rows}
+
+        if column_name in existing_columns:
+            return
+
+        self.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+        )

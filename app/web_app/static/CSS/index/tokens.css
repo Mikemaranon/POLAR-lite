@@ -1,0 +1,25 @@
+:root {
+    --bg: #f3f1ea;
+    --panel: #f8f7f1;
+    --panel-strong: #ffffff;
+    --sidebar-bg: #ebe8df;
+    --line: rgba(30, 31, 25, 0.1);
+    --line-strong: rgba(30, 31, 25, 0.2);
+    --text: #1d1f1a;
+    --text-soft: #6a6e63;
+    --accent: #1c8b59;
+    --accent-strong: #166d45;
+    --accent-soft: rgba(28, 139, 89, 0.12);
+    --shadow: 0 18px 60px rgba(24, 25, 20, 0.12);
+    --shadow-modal: 0 28px 56px rgba(24, 25, 20, 0.18);
+    --overlay: rgba(22, 24, 20, 0.42);
+    --radius-xl: 28px;
+    --radius-lg: 22px;
+    --radius-md: 16px;
+    --radius-sm: 12px;
+    --radius-pill: 999px;
+    --sidebar-width: 308px;
+    --content-width: 880px;
+    --font-ui: "SF Pro Display", "Segoe UI Variable", "Avenir Next", sans-serif;
+    --font-display: "SF Pro Display", "Segoe UI Variable", "Avenir Next", sans-serif;
+}

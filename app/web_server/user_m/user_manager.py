@@ -45,9 +45,6 @@ class UserManager:
         user = self.db.users.get(username)
 
         if user:
-            print("Stored hashed password:", user["password"])
-            print("Password entered by the user:", password)
-
             if check_password_hash(user["password"], password):
                 return True
 

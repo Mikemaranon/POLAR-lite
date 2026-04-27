@@ -1,0 +1,209 @@
+.modal[hidden] {
+    display: none;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+
+.modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--overlay);
+    opacity: 0;
+    transition: opacity 0.24s ease;
+}
+
+.modal__panel {
+    position: relative;
+    width: min(880px, 100%);
+    max-height: calc(100vh - 36px);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    opacity: 0;
+    transform: translateY(88px);
+    transition: transform 0.24s cubic-bezier(0.18, 0.88, 0.22, 1), opacity 0.2s ease;
+}
+
+.modal[data-state="open"] .modal__backdrop {
+    opacity: 1;
+}
+
+.modal[data-state="open"] .modal__panel {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.modal[data-state="closing"] .modal__backdrop {
+    opacity: 0;
+}
+
+.modal[data-state="closing"] .modal__panel {
+    opacity: 0;
+    transform: translateY(88px);
+}
+
+.modal__panel--narrow {
+    width: min(640px, 100%);
+}
+
+.modal__header {
+    padding: 22px 24px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
+.modal__body {
+    padding: 24px;
+    overflow-y: auto;
+    display: grid;
+    gap: 22px;
+}
+
+.settings-block {
+    border: 1px solid var(--line);
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: var(--radius-lg);
+}
+
+.settings-block h4 {
+    margin: 0 0 14px;
+    font-size: 1rem;
+}
+
+.settings-block__copy {
+    margin: 0 0 14px;
+    color: var(--text-soft);
+    line-height: 1.6;
+}
+
+.settings-block--session {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.settings-block--danger {
+    border-color: rgba(171, 63, 38, 0.18);
+    background: rgba(171, 63, 38, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.documents-dropzone {
+    min-height: 220px;
+    border: 1px dashed var(--line-strong);
+    background: rgba(255, 255, 255, 0.45);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: var(--radius-lg);
+    transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.documents-dropzone:hover,
+.documents-dropzone.is-dragging {
+    border-color: rgba(28, 139, 89, 0.35);
+    background: rgba(28, 139, 89, 0.08);
+}
+
+.documents-dropzone__title {
+    font-weight: 600;
+}
+
+.documents-dropzone__meta,
+.documents-file-list__empty {
+    color: var(--text-soft);
+    font-size: 0.88rem;
+}
+
+.documents-file-list {
+    margin-top: 14px;
+    display: grid;
+    gap: 8px;
+}
+
+.documents-file-list__empty {
+    margin: 0;
+}
+
+.documents-file {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.62);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+}
+
+.documents-file__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.documents-file__meta {
+    flex: none;
+    color: var(--text-soft);
+    font-size: 0.82rem;
+}
+
+.modal__close-button {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    z-index: 2;
+}
+
+.confirm-dialog__body {
+    display: grid;
+    gap: 24px;
+    padding: 40px;
+}
+
+.confirm-dialog__header {
+    padding-right: 56px;
+}
+
+.confirm-dialog__header h3,
+.confirm-dialog__message {
+    margin: 0;
+}
+
+.confirm-dialog__message {
+    margin-top: 10px;
+    color: var(--text-soft);
+    line-height: 1.6;
+}
+
+.confirm-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+}
+
+.project-create-dialog__form {
+    padding-top: 22px;
+}

@@ -6,9 +6,18 @@ from .exceptions import (
 )
 from .model_manager import ModelManager
 from .provider_manager import ProviderManager
-from .providers import ModelProvider, MLXProvider, OllamaProvider, OpenAIProvider
+from .providers import (
+    AnthropicProvider,
+    GoogleProvider,
+    ModelProvider,
+    MLXProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 
 __all__ = [
+    "AnthropicProvider",
+    "GoogleProvider",
     "ModelManager",
     "ProviderManager",
     "ModelProvider",

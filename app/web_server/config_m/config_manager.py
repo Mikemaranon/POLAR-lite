@@ -10,7 +10,10 @@ class ConfigManager:
 
     def _load_runtime_config(self) -> RuntimeConfig:
         return RuntimeConfig(
-            secret_key=os.environ.get("SECRET_KEY", "127-ai-local-dev-secret"),
+            secret_key=os.environ.get(
+                "SECRET_KEY",
+                "polar-studio-local-dev-secret-key-2026",
+            ),
             host=os.environ.get("HOST", "0.0.0.0"),
             port=self._get_env_int("PORT", 5050),
             debug=self._get_env_bool("FLASK_DEBUG", True),
@@ -22,11 +25,21 @@ class ConfigManager:
             ollama_base_url=os.environ.get(
                 "OLLAMA_BASE_URL", "http://localhost:11434/api"
             ).rstrip("/"),
+            ollama_api_key=os.environ.get("OLLAMA_API_KEY"),
             openai_base_url=os.environ.get(
                 "OPENAI_BASE_URL", "https://api.openai.com/v1"
             ).rstrip("/"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
+            anthropic_base_url=os.environ.get(
+                "ANTHROPIC_BASE_URL", "https://api.anthropic.com"
+            ).rstrip("/"),
+            anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+            google_base_url=os.environ.get(
+                "GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com"
+            ).rstrip("/"),
+            google_api_key=os.environ.get("GOOGLE_API_KEY"),
             mlx_model_paths=self._get_env_list("MLX_MODEL_PATHS"),
+            huggingface_cache_dir=os.environ.get("HUGGINGFACE_HUB_CACHE"),
             request_timeout_seconds=self._get_env_int("MODEL_REQUEST_TIMEOUT", 120),
         )
 
@@ -44,7 +57,10 @@ class ConfigManager:
                 "default_provider": self.providers.default_provider,
                 "ollama_base_url": self.providers.ollama_base_url,
                 "openai_base_url": self.providers.openai_base_url,
+                "anthropic_base_url": self.providers.anthropic_base_url,
+                "google_base_url": self.providers.google_base_url,
                 "mlx_model_paths": list(self.providers.mlx_model_paths),
+                "huggingface_cache_dir": self.providers.huggingface_cache_dir,
                 "request_timeout_seconds": self.providers.request_timeout_seconds,
             },
         }
