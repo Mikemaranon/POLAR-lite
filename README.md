@@ -1,176 +1,64 @@
-# POLAR lite
+<p align="center">
+  <img src="app/web_app/static/assets/POLAR.AI-t-small.png" alt="POLAR AI" width="150">
+</p>
 
-This project extends the original Flask template into POLAR lite, a local-first AI chat application. The codebase is now organized into three top-level folders:
+<h1 align="center">POLAR lite</h1>
 
-- `app/`: application code
-- `tests/`: domain-oriented test runners and test cases
-- `deploy/`: reserved for future deployment workflows
+<p align="center">
+  A local-first AI chat app built for working with different models, keeping conversations organized, and offering a simple, lightweight, pleasant experience.
+</p>
+<br>
 
-In order to run the app, execute this:
+## AI That Feels Close, Fast, and Yours
+
+POLAR lite is a chat experience inspired by the comfort of modern conversational tools, but designed to give you more control. The app is meant to run in your own environment, keep your conversations organized, and let you choose how you want to work with AI at any moment.
+
+This is not just about sending prompts back and forth. POLAR lite aims to be a space where you can think, write, explore ideas, and keep context without friction.
+
+## What You Can Do With POLAR lite
+
+- Chat with different models from a single interface, without switching tools.
+- Choose between local and remote providers depending on what each conversation needs.
+- Run local models with MLX on Apple Silicon.
+- Connect to Ollama and use your local model library.
+- Use OpenAI whenever you want access to cloud models.
+- Create projects to separate topics, clients, ideas, or workstreams.
+- Save conversations and return to them later without losing context.
+- Define profiles with different instructions, tone, and generation settings.
+- Adjust system prompts and preferences so the assistant fits your workflow.
+
+## Designed To Feel Natural
+
+The experience is designed to feel clear from the first moment: a sidebar for navigating projects and conversations, a clean central chat area, and simple controls for switching models, providers, and settings.
+
+The goal is for it to feel light, direct, and friendly. Less friction, more continuity.
+
+## Great For
+
+- People who want a more private and controllable AI app.
+- Anyone who prefers local models whenever possible.
+- Teams or creators who need to organize conversations by project.
+- Users who often switch between response styles, contexts, and models.
+
+## Supported Providers
+
+POLAR lite can work with multiple AI paths inside the same app:
+
+- `MLX`: for local inference on Apple Silicon.
+- `Ollama`: for connecting to models served on `localhost`.
+- `OpenAI`: for using remote models with your own API key.
+
+## Quick Start
+
+If your environment is already set up, you can start the app like this:
+
 ```bash
 source .venv/bin/activate
 python app/web_server/main.py
 ```
 
-To run all test domains:
-```bash
-source .venv/bin/activate
-python tests/run_all.py
-```
+Then open the interface in your browser and start creating projects, profiles, and conversations.
 
-To run one domain only:
-```bash
-source .venv/bin/activate
-python tests/data_m/run.py
-```
+## In One Line
 
-sample API call:
-> This endpoint does not require authentication or a request body.
-```bash
-curl -X POST http://localhost:5050/api/check \
-     -H "Content-Type: application/json"
-```
-
-Documentation on how the structure and code works is right bellow
-
-## Server
-
-We have 3 different files:
-- `main.py`: Starts the Flask Instance, is where the program starts to execute
-- `server.py`: Manages the Flask application, adding every module created to it
-- `app_routes.py`: Manages the routes in the web, here we define the logic used for the user to navigate between pages
-
-On the other hand, the server complexity starts here: the implementation of different modules to structure the logic of the server in different processes through classes and methods to control all the data workflow. I have included 3 basic modules that i consider essential to every app:
-
-### `data_m` — Database Management Layer
-
-The database system uses SQLite with a three-layer architecture:
-
-1. **DBConnector**  
-   Handles raw `SQLite` connections.
-
-2. **Database**  
-   Low-level execution engine that:
-   - runs SQL statements,
-   - initializes the schema,
-   - manages commits/rollbacks,
-   - guarantees atomic operations.
-
-3. **DBManager**  
-   High-level interface exposing table-specific managers.
-
-### Table Managers (t_*)
-Each database table has its own dedicated class:
-- `t_users`
-- `t_sessions`
-- `t_agent_logs`
-
-Each of these classes encapsulates CRUD operations and ensures no raw SQL appears outside the data layer.
-
-This design follows the Single Responsibility Principle (SRP) and supports clean scalability.
-
-### `user_m` — User Management System
-
-A module designed to register, login and logout users from the app by using `PyJWT` to generate tokens. The manager has the following methods that can be called using the instance of `user_manager`:
-- **`user_manager` methods**: The manager has the following methods that can be called using the instance of the class
-    - `check_user()`: can be called to check if the token received from the request is available, returns the user instance where all the information is stored
-    - `login()`: checks if the user exists through `authenticate()` method and initializes a new instance for the user if it exists, if the user was already logged in, a new instance will be generated and will overwrite the old one
-    - `logout()`: deletes the user instance from the caché
-    - `get_user()`: receives an input token and returns the user instance correspondint to that token
-    - `authenticate()`: calls the Database to check if the input user exists, returns `true` if the user exists and the password from the `login()` method is the same as the one in the Database. Returns `false` if either of both do not apply
-    
-- **`user` methods**: The user has 3 basic methods to manage all its information
-    - `set_session_data()`: creates a value for a key in the `self.session_data` map.
-    - `get_session_data()`: returns the value for the input key in the `self.session_data` map.
-    - `clear_session()`: clears the session data leaving it empty
-
-### `api_m` — Domain-Based API System
-
-This module implements a dynamic API loader that scans `api_m/domains` and automatically registers every class that provides a `register()` method.
-
-### `ApiManager`
-- Automatically discovers and loads API domain classes.
-- Registers their routes inside Flask.
-- Integrates authentication seamlessly.
-- Makes adding new APIs trivial.
-
-### `api_m/domains/base_api.py`
-Shared utilities for all API domains:
-- unified response helpers (`ok()`, `error()`),
-- centralized request authentication (`authenticate_request()`).
-
-### Adding New API Domains
-To add a new API, simply:
-1. Create a class inside `api_m/domains/`.
-2. Inherit from `BaseAPI`.
-3. Implement a `register()` method that defines the endpoints.
-4. Add the logic in instance methods.
-
-The autoloader will pick it up automatically—no changes in `ApiManager`.
-
-## Client
-
-To make user managing easier, I created a JavaScript file called `token-handler.js` in `web_app/static/JS` with the following methods
-
-### token handling
-methods to handle the token locally
-- `store_token(token)`: stores the input token in the local storage
-- `getToken()`: returns the locally stored token
-- `delete_token()`: deletes the locally stored token
-
-### authentication
-> IMPORTANT: ASYNC FUNCTION BELLOW
-- `login(username, password) `: manages the login of the application connecting to the enpoint
-- `send_API_request(method, endpoint, body = null)`: a generic method to call an API endpoint with the token managing logic implemented.
-
-This makes it easier to manage the API calling from the client, it shall be used as the example bellow:
-
-### LOGIN
-```JavaScript
-    try {
-        const response = await login(username, password)
-
-        const data = await response.json();
-        console.log(data);
-
-        if (response.ok && data.token) {
-            store_token(data.token);
-            loadPage("/");
-        } else {
-            errorMessage.textContent = data.error || "An error occurred.";
-            errorMessage.style.display = "block";
-        }
-    } catch (error) {
-        console.error("Error during login:", error);
-        errorMessage.textContent = "Incorrect user, please try again.";
-        errorMessage.style.display = "block";
-    }
-```
-
-### API
-```JavaScript
-
-    // sending a message to a chatbot managed by Flask, expecting an answer
-    try {
-        const context = getChatContext()
-
-        body = { 
-            temperature: context.temperature,
-            system_msg: context.system_msg,
-            message: message 
-        }
-
-        const response = await send_API_request("POST", "/api/send-message", body)
-
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-
-        const data = await response.json();
-        return data[0];
-
-    } catch (error) {
-        console.error('Error:', error);
-        return 'Something went wrong.';
-    }
-```
+POLAR lite is a local-first, flexible, pleasant AI conversation space built to help you choose your models, organize your work, and keep the experience simple from beginning to end.
