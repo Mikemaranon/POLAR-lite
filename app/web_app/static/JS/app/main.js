@@ -1,5 +1,5 @@
 import { bindUI, bootApp, ensureAuthenticated } from "./controller.js";
-import { showStatus } from "./utils.js";
+import { showStatus } from "./status-ui.js";
 
 
 document.addEventListener("DOMContentLoaded", () => {

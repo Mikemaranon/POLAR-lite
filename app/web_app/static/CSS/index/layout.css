@@ -186,6 +186,20 @@
     height: 18px;
 }
 
+.composer__send--stop {
+    width: 46px;
+    min-width: 46px;
+    padding: 0;
+}
+
+.composer__stop-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background: currentColor;
+    flex: none;
+}
+
 .empty-state {
     height: 100%;
     max-width: 760px;
@@ -308,7 +322,7 @@
     padding: 4px 0 24px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 22px;
 }
 
 .project-space__hero {
@@ -374,6 +388,11 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    padding: 18px 0 0;
+    border: none;
+    border-top: 1px solid rgba(30, 31, 25, 0.12);
+    border-radius: 0;
+    background: transparent;
 }
 
 .project-panel--full {
@@ -390,7 +409,8 @@
     justify-content: space-between;
     gap: 12px;
     align-items: baseline;
-    margin-bottom: 14px;
+    margin-bottom: 8px;
+    padding: 0 2px;
 }
 
 .project-panel__header h4 {
@@ -418,42 +438,49 @@
 .project-conversations-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
     overflow-y: auto;
     min-height: 0;
     flex: 1;
     padding-right: 4px;
 }
 
+.project-conversations-list .list-item--empty {
+    margin: 0;
+    padding: 16px 4px;
+}
+
 .project-chat-card {
     width: 100%;
-    border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.72);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 38px;
-    align-items: stretch;
-    gap: 6px;
-    border-radius: var(--radius-md);
+    position: relative;
+    border: none;
+    border-bottom: 0.5px solid rgba(30, 31, 25, 0.07);
+    background: transparent;
+    display: block;
+    border-radius: 0;
     overflow: hidden;
     transition: background 0.18s ease, border-color 0.18s ease;
 }
 
 .project-chat-card:hover {
-    background: rgba(255, 255, 255, 0.96);
-    border-color: rgba(28, 139, 89, 0.24);
+    background: rgba(255, 255, 255, 0.48);
+    border-color: rgba(30, 31, 25, 0.1);
 }
 
 .project-chat-card.is-active {
-    border-color: rgba(28, 139, 89, 0.34);
-    background: rgba(255, 255, 255, 0.98);
+    background:
+        linear-gradient(90deg, rgba(28, 139, 89, 0.1), rgba(28, 139, 89, 0.03) 44%, transparent 100%),
+        rgba(255, 255, 255, 0.28);
+    border-color: rgba(28, 139, 89, 0.16);
 }
 
 .project-chat-card__main {
+    width: 100%;
     min-width: 0;
     text-align: left;
     border: none;
     background: transparent;
-    padding: 14px 16px;
+    padding: 15px 52px 15px 4px;
     cursor: pointer;
 }
 
@@ -468,4 +495,10 @@
     margin-top: 6px;
     font-size: 0.82rem;
     color: var(--text-soft);
+}
+
+.project-chat-card .conversation-row__delete {
+    right: 0;
+    background: rgba(255, 255, 255, 0.76);
+    border-color: rgba(171, 63, 38, 0.08);
 }

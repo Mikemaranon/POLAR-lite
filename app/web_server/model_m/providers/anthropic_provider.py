@@ -7,8 +7,13 @@ class AnthropicProvider(ModelProvider):
     provider_name = "anthropic"
     api_version = "2023-06-01"
 
-    def __init__(self, config, db_manager=None, http_client=None):
-        super().__init__(config, db_manager=db_manager, http_client=http_client)
+    def __init__(self, config, db_manager=None, http_client=None, settings_resolver=None):
+        super().__init__(
+            config,
+            db_manager=db_manager,
+            http_client=http_client,
+            settings_resolver=settings_resolver,
+        )
         self.http_client = http_client or JsonHttpClient(config.request_timeout_seconds)
 
     def is_available(self) -> bool:
@@ -86,7 +91,10 @@ class AnthropicProvider(ModelProvider):
         )
 
     def _get_api_key(self):
-        return self.get_cloud_api_key(self.config.anthropic_api_key)
+        return self.settings_resolver.get_cloud_api_key(
+            self.provider_name,
+            self.config.anthropic_api_key,
+        )
 
     def _build_headers(self, api_key):
         return {

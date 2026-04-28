@@ -1,17 +1,23 @@
 from abc import ABC, abstractmethod
-import json
 
 from config_m import ProviderConfig
 
 from ..exceptions import ModelOperationError
+from ..provider_settings_resolver import ProviderSettingsResolver
 
 class ModelProvider(ABC):
     provider_name = "base"
 
-    def __init__(self, config: ProviderConfig, db_manager=None, http_client=None):
+    def __init__(
+        self,
+        config: ProviderConfig,
+        db_manager=None,
+        http_client=None,
+        settings_resolver=None,
+    ):
         self.config = config
-        self.db_manager = db_manager
         self.http_client = http_client
+        self.settings_resolver = settings_resolver or ProviderSettingsResolver(db_manager)
 
     def is_available(self) -> bool:
         return True
@@ -32,7 +38,20 @@ class ModelProvider(ABC):
         messages: list[dict],
         model: str,
         settings: dict | None = None,
+        should_stop=None,
     ):
+        if self.is_stop_requested(should_stop):
+            yield {
+                "type": "response",
+                "response": self.normalize_chat_response(
+                    model=model,
+                    content="",
+                    finish_reason="cancelled",
+                    raw_response={"cancelled": True},
+                ),
+            }
+            return
+
         response = self.chat(messages, model, settings)
         content = (response.get("message") or {}).get("content", "")
 
@@ -46,31 +65,6 @@ class ModelProvider(ABC):
             "type": "response",
             "response": response,
         }
-
-    def get_setting(self, key: str, default=None):
-        if not self.db_manager:
-            return default
-
-        setting = self.db_manager.settings.get(key)
-        if not setting:
-            return default
-        return setting.get("value", default)
-
-    def get_cloud_api_key(self, fallback_key=None):
-        fallback_key = fallback_key or getattr(self.config, f"{self.provider_name}_api_key", None)
-        stored_value = self.get_setting("openai_api_key")
-        parsed_keys = self._parse_cloud_api_keys(stored_value)
-
-        if isinstance(parsed_keys, dict):
-            provider_key = parsed_keys.get(self.provider_name)
-            if provider_key:
-                return provider_key
-            return fallback_key
-
-        if parsed_keys:
-            return parsed_keys
-
-        return fallback_key
 
     def normalize_messages(self, messages: list[dict]) -> list[dict]:
         normalized_messages = []
@@ -155,6 +149,9 @@ class ModelProvider(ABC):
 
         return normalized
 
+    def is_stop_requested(self, should_stop=None) -> bool:
+        return bool(should_stop and should_stop())
+
     def _normalize_content(self, content) -> str:
         if isinstance(content, str):
             return content
@@ -176,24 +173,3 @@ class ModelProvider(ABC):
             return ""
 
         return str(content)
-
-    def _parse_cloud_api_keys(self, raw_value):
-        if raw_value is None:
-            return {}
-
-        if isinstance(raw_value, dict):
-            return raw_value
-
-        if not isinstance(raw_value, str):
-            return {}
-
-        normalized = raw_value.strip()
-        if not normalized:
-            return {}
-
-        try:
-            parsed = json.loads(normalized)
-        except json.JSONDecodeError:
-            return normalized
-
-        return parsed if isinstance(parsed, dict) else normalized

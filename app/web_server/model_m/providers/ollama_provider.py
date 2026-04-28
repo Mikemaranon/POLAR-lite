@@ -6,8 +6,13 @@ from .base_provider import ModelProvider
 class OllamaProvider(ModelProvider):
     provider_name = "ollama"
 
-    def __init__(self, config, db_manager=None, http_client=None):
-        super().__init__(config, db_manager=db_manager, http_client=http_client)
+    def __init__(self, config, db_manager=None, http_client=None, settings_resolver=None):
+        super().__init__(
+            config,
+            db_manager=db_manager,
+            http_client=http_client,
+            settings_resolver=settings_resolver,
+        )
         self.http_client = http_client or JsonHttpClient(config.request_timeout_seconds)
 
     def list_models(self) -> list[dict]:
@@ -65,7 +70,13 @@ class OllamaProvider(ModelProvider):
             raw_response=response,
         )
 
-    def stream_chat(self, messages: list[dict], model: str, settings: dict | None = None):
+    def stream_chat(
+        self,
+        messages: list[dict],
+        model: str,
+        settings: dict | None = None,
+        should_stop=None,
+    ):
         payload = self._build_chat_payload(messages, model, settings, stream=True)
         content_parts = []
         finish_reason = "stop"
@@ -79,6 +90,9 @@ class OllamaProvider(ModelProvider):
             headers=self._build_headers(),
             provider_name=self.provider_name,
         ):
+            if self.is_stop_requested(should_stop):
+                break
+
             chunk_count += 1
             self._raise_if_error_response(chunk, model=model)
             response_model = chunk.get("model", response_model)
@@ -101,6 +115,9 @@ class OllamaProvider(ModelProvider):
                     "load_duration": chunk.get("load_duration"),
                 }
 
+        if self.is_stop_requested(should_stop):
+            finish_reason = "cancelled"
+
         yield {
             "type": "response",
             "response": self.normalize_chat_response(
@@ -111,6 +128,7 @@ class OllamaProvider(ModelProvider):
                 raw_response={
                     "streamed": True,
                     "chunk_count": chunk_count,
+                    "cancelled": finish_reason == "cancelled",
                 },
             ),
         }
@@ -129,7 +147,10 @@ class OllamaProvider(ModelProvider):
         return payload
 
     def _build_headers(self):
-        api_key = self.get_setting("ollama_api_key", self.config.ollama_api_key)
+        api_key = self.settings_resolver.get_setting(
+            "ollama_api_key",
+            self.config.ollama_api_key,
+        )
         if not api_key:
             return {}
         return {"Authorization": f"Bearer {api_key}"}

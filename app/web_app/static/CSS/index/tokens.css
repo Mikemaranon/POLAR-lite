@@ -21,6 +21,10 @@
     --meta-chip-provider: #3f7b54;
     --meta-chip-model: #8f612b;
     --meta-chip-profile: #2b7249;
+    --form-select-bg: #fcfcf8;
+    --form-select-hover-bg: #f7f5ee;
+    --form-select-border: #cfd4c8;
+    --form-select-hover-border: #bbc4b6;
     --radius-xl: 28px;
     --radius-lg: 22px;
     --radius-md: 16px;

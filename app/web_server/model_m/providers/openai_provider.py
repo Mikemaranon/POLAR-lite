@@ -6,8 +6,13 @@ from .base_provider import ModelProvider
 class OpenAIProvider(ModelProvider):
     provider_name = "openai"
 
-    def __init__(self, config, db_manager=None, http_client=None):
-        super().__init__(config, db_manager=db_manager, http_client=http_client)
+    def __init__(self, config, db_manager=None, http_client=None, settings_resolver=None):
+        super().__init__(
+            config,
+            db_manager=db_manager,
+            http_client=http_client,
+            settings_resolver=settings_resolver,
+        )
         self.http_client = http_client or JsonHttpClient(config.request_timeout_seconds)
 
     def is_available(self) -> bool:
@@ -75,7 +80,13 @@ class OpenAIProvider(ModelProvider):
             message_id=response.get("id"),
         )
 
-    def stream_chat(self, messages: list[dict], model: str, settings: dict | None = None):
+    def stream_chat(
+        self,
+        messages: list[dict],
+        model: str,
+        settings: dict | None = None,
+        should_stop=None,
+    ):
         api_key = self._get_api_key()
         if not api_key:
             raise ProviderUnavailableError(
@@ -97,6 +108,9 @@ class OpenAIProvider(ModelProvider):
             headers=self._build_headers(api_key),
             provider_name=self.provider_name,
         ):
+            if self.is_stop_requested(should_stop):
+                break
+
             chunk_count += 1
             response_model = chunk.get("model", response_model)
             message_id = chunk.get("id") or message_id
@@ -116,6 +130,9 @@ class OpenAIProvider(ModelProvider):
             if choice.get("finish_reason") is not None:
                 finish_reason = choice.get("finish_reason")
 
+        if self.is_stop_requested(should_stop):
+            finish_reason = "cancelled"
+
         yield {
             "type": "response",
             "response": self.normalize_chat_response(
@@ -126,6 +143,7 @@ class OpenAIProvider(ModelProvider):
                 raw_response={
                     "streamed": True,
                     "chunk_count": chunk_count,
+                    "cancelled": finish_reason == "cancelled",
                 },
                 message_id=message_id,
             ),
@@ -154,7 +172,10 @@ class OpenAIProvider(ModelProvider):
         return payload
 
     def _get_api_key(self):
-        return self.get_cloud_api_key(self.config.openai_api_key)
+        return self.settings_resolver.get_cloud_api_key(
+            self.provider_name,
+            self.config.openai_api_key,
+        )
 
     def _build_headers(self, api_key):
         return {

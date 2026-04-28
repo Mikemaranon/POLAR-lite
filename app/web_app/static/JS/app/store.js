@@ -3,83 +3,46 @@ import {
     loadConversationsData,
     loadModelsData,
     loadProfilesData,
+    loadProjectDocumentsData,
     loadProjectsData,
     loadSettingsData,
 } from "./api.js";
-import { state } from "./state.js";
-import { getRootProviderForActualProvider, isCloudProvider } from "./utils.js";
 
 
 export async function loadProjects() {
-    const data = await loadProjectsData();
-    state.projects = data.projects || [];
-
-    if (state.activeProjectId && !state.projects.some((project) => project.id === state.activeProjectId)) {
-        state.activeProjectId = null;
-    }
+    return loadProjectsData();
 }
 
 
 export async function loadProfiles() {
-    const data = await loadProfilesData();
-    state.profiles = data.profiles || [];
+    return loadProfilesData();
+}
+
+
+export async function loadProjectDocuments(projectId) {
+    if (!projectId) {
+        return { documents: [] };
+    }
+
+    return loadProjectDocumentsData(projectId);
 }
 
 
 export async function loadConversations(projectId) {
-    const data = await loadConversationsData(projectId);
-    state.conversations = data.conversations || [];
-
-    if (state.activeConversationId) {
-        const matchingConversation = state.conversations.find(
-            (conversation) => conversation.id === state.activeConversationId
-        );
-
-        if (!matchingConversation) {
-            state.activeConversationId = null;
-            state.activeConversation = null;
-            state.activeMessages = [];
-            return;
-        }
-
-        state.activeConversation = {
-            ...(state.activeConversation || {}),
-            ...matchingConversation,
-        };
-    }
+    return loadConversationsData(projectId);
 }
 
 
 export async function loadConversationDetail(conversationId) {
-    const data = await loadConversationDetailData(conversationId);
-    state.activeConversation = data.conversation;
-    state.activeConversationId = data.conversation.id;
-    state.activeMessages = data.messages || [];
-    state.activeProjectId = state.activeConversation.project_id || null;
-    state.selectedProvider = getRootProviderForActualProvider(state.activeConversation.provider) || state.selectedProvider;
-    if (isCloudProvider(state.activeConversation.provider)) {
-        state.selectedCloudProvider = state.activeConversation.provider;
-    }
-    if (state.activeConversation.provider && state.activeConversation.model) {
-        state.modelSelections[state.activeConversation.provider] = state.activeConversation.model;
-    }
-    state.workspaceMode = "conversation";
+    return loadConversationDetailData(conversationId);
 }
 
 
 export async function loadModels() {
-    const data = await loadModelsData();
-    state.providerCatalogs = data.providers || [];
+    return loadModelsData();
 }
 
 
 export async function loadSettings() {
-    const data = await loadSettingsData();
-    const settings = {};
-
-    for (const item of data.settings || []) {
-        settings[item.key] = item.value;
-    }
-
-    state.settings = settings;
+    return loadSettingsData();
 }

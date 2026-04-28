@@ -59,6 +59,8 @@ python app/web_server/main.py
 
 Then open the interface in your browser and start creating projects, profiles, and conversations.
 
+By default, POLAR lite stores its runtime SQLite database in `.polar-lite/flask.db` at the project root so local usage data stays out of the versioned source tree. If you need an isolated path for tests or a custom environment, set `APP_DB_PATH`.
+
 ## In One Line
 
 POLAR lite is a local-first, flexible, pleasant AI conversation space built to help you choose your models, organize your work, and keep the experience simple from beginning to end.

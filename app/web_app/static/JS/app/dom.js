@@ -41,6 +41,8 @@ export const elements = {
     documentsInput: document.getElementById("documents-input"),
     documentsFileList: document.getElementById("documents-file-list"),
     statusBanner: document.getElementById("status-banner"),
+    statusBannerMessage: document.getElementById("status-banner-message"),
+    statusBannerCloseButton: document.getElementById("status-banner-close"),
     projectsList: document.getElementById("projects-list"),
     projectCount: document.getElementById("project-count"),
     conversationsList: document.getElementById("conversations-list"),

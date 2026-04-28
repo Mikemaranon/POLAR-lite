@@ -16,9 +16,12 @@ export const state = {
     profileModalMode: "create",
     profileModalProfileId: null,
     profileModalContext: "settings",
+    projectDocuments: [],
     activeMessages: [],
     messagesAutoScrollEnabled: true,
     stagedDocuments: [],
     loading: false,
+    activeGenerationRequestId: null,
+    generationStopRequested: false,
     isSidebarOpen: false,
 };

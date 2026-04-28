@@ -27,8 +27,15 @@ class ModelManager:
         messages: list[dict],
         model: str,
         settings: dict | None = None,
+        should_stop=None,
     ):
-        return self.provider_manager.stream_chat(provider_name, messages, model, settings or {})
+        return self.provider_manager.stream_chat(
+            provider_name,
+            messages,
+            model,
+            settings or {},
+            should_stop=should_stop,
+        )
 
     def generate_conversation_title(
         self,

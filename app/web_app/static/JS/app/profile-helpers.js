@@ -1,0 +1,2 @@
+export const MAX_PROFILE_TAGS = 10;
+export const PROFILE_SETTINGS_PREVIEW_TAGS = 4;

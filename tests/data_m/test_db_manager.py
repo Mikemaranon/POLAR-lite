@@ -1,9 +1,26 @@
 from tests.test_support import IsolatedDatabaseTestCase
 
+from config_m import ConfigManager
 from data_m import DBManager
+from user_m import UserManager
 
 
 class DBManagerTests(IsolatedDatabaseTestCase):
+    def test_clean_boot_creates_database_file_and_default_records(self):
+        self.assertFalse(self.db_path.exists())
+
+        db = DBManager()
+        config_manager = ConfigManager()
+        user_manager = UserManager(
+            db_manager=db,
+            secret_key=config_manager.runtime.secret_key,
+        )
+
+        self.assertTrue(self.db_path.exists())
+        self.assertIsNotNone(db.profiles.get_default())
+        self.assertIsNotNone(db.users.get("admin"))
+        self.assertIs(user_manager.db, db)
+
     def test_creates_default_profile_on_first_boot(self):
         db = DBManager()
 

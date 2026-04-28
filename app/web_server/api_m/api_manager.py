@@ -7,19 +7,28 @@ from flask import jsonify
 from user_m import UserManager
 from data_m import DBManager
 from model_m import ModelManager
+from config_m import ConfigManager
+
+from service_registry import ServiceRegistry
 
 class ApiManager:
     def __init__(
         self,
         app,
-        user_manager: UserManager,
-        DBManager: DBManager,
-        model_manager: ModelManager,
+        user_manager: UserManager | None = None,
+        DBManager: DBManager | None = None,
+        model_manager: ModelManager | None = None,
+        services: ServiceRegistry | None = None,
     ):
         self.app = app
-        self.user_manager = user_manager
-        self.DBManager = DBManager
-        self.model_manager = model_manager
+        self.services = services or self._build_services(
+            user_manager=user_manager,
+            db_manager=DBManager,
+            model_manager=model_manager,
+        )
+        self.user_manager = self.services.user_manager
+        self.DBManager = self.services.db_manager
+        self.model_manager = self.services.model_manager
         self._register_APIs()
         self._autoload_domains()
 
@@ -53,14 +62,9 @@ class ApiManager:
                     and hasattr(attr, "register")
                     and attr.__name__ != "BaseAPI"
                 ):
-                    api_instance = attr(
-                        self.app,
-                        self.user_manager,
-                        self.DBManager,
-                        self.model_manager,
-                    )
+                    api_instance = attr(self.app, services=self.services)
                     api_instance.register()
-                    print(f"[API Manager] Loaded API: {attr.__name__}")
+                    self.app.logger.debug("Loaded API: %s", attr.__name__)
 
     # =========================================
     #       API protocols start from here
@@ -69,5 +73,20 @@ class ApiManager:
     # endpoint to check if the API is working
     def API_check(self):
         return jsonify({"status": "ok"}), 200
-    
-    
+
+    def _build_services(self, user_manager, db_manager, model_manager):
+        if not user_manager or not db_manager or not model_manager:
+            raise ValueError(
+                "ApiManager requires either a ServiceRegistry or the core managers."
+            )
+
+        config_manager = getattr(model_manager, "config_manager", None)
+        if not isinstance(config_manager, ConfigManager):
+            raise ValueError("ModelManager must expose a valid ConfigManager.")
+
+        return ServiceRegistry(
+            config_manager=config_manager,
+            db_manager=db_manager,
+            user_manager=user_manager,
+            model_manager=model_manager,
+        )

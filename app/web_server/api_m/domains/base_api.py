@@ -1,15 +1,30 @@
 # api_m/domains/base_api.py
 
 from flask import jsonify
-from user_m import UserManager
-from model_m import ModelManager
+
 
 class BaseAPI:
-    def __init__(self, app, user_manager: UserManager, db, model_manager: ModelManager):
+    def __init__(
+        self,
+        app,
+        user_manager=None,
+        db=None,
+        model_manager=None,
+        services=None,
+    ):
         self.app = app
-        self.user_manager = user_manager
-        self.db = db
-        self.model_manager = model_manager
+        self.services = services
+
+        if self.services:
+            self.user_manager = self.services.user_manager
+            self.db = self.services.db_manager
+            self.model_manager = self.services.model_manager
+            self.config_manager = self.services.config_manager
+        else:
+            self.user_manager = user_manager
+            self.db = db
+            self.model_manager = model_manager
+            self.config_manager = getattr(model_manager, "config_manager", None)
 
     def ok(self, data, code=200):
         return jsonify(data), code

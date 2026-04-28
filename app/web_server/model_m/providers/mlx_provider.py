@@ -10,8 +10,13 @@ from .base_provider import ModelProvider
 class MLXProvider(ModelProvider):
     provider_name = "mlx"
 
-    def __init__(self, config, db_manager=None, http_client=None):
-        super().__init__(config, db_manager=db_manager, http_client=http_client)
+    def __init__(self, config, db_manager=None, http_client=None, settings_resolver=None):
+        super().__init__(
+            config,
+            db_manager=db_manager,
+            http_client=http_client,
+            settings_resolver=settings_resolver,
+        )
         self._loaded_models = {}
         self._model_lock = threading.Lock()
 
@@ -92,7 +97,13 @@ class MLXProvider(ModelProvider):
             },
         )
 
-    def stream_chat(self, messages: list[dict], model: str, settings: dict | None = None):
+    def stream_chat(
+        self,
+        messages: list[dict],
+        model: str,
+        settings: dict | None = None,
+        should_stop=None,
+    ):
         if not self.is_available():
             raise ProviderUnavailableError(
                 "mlx_lm is not installed. Install it before using the MLX provider.",
@@ -118,6 +129,9 @@ class MLXProvider(ModelProvider):
                 tokenizer,
                 **generation_kwargs,
             ):
+                if self.is_stop_requested(should_stop):
+                    break
+
                 chunk_count += 1
                 text = response.text or ""
                 if text:
@@ -142,6 +156,8 @@ class MLXProvider(ModelProvider):
             ) from error
 
         content = "".join(segments)
+        if self.is_stop_requested(should_stop):
+            finish_reason = "cancelled"
         usage["prompt_characters"] = len(generation_kwargs.get("prompt", ""))
         usage["completion_characters"] = len(content)
 
@@ -156,6 +172,7 @@ class MLXProvider(ModelProvider):
                     "resolved_model": str(resolved_model),
                     "streamed": True,
                     "chunk_count": chunk_count,
+                    "cancelled": finish_reason == "cancelled",
                 },
             ),
         }

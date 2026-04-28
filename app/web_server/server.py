@@ -8,6 +8,7 @@ from model_m import ModelManager
 from user_m import UserManager
 from api_m import ApiManager
 from app_routes import AppRoutes
+from service_registry import ServiceRegistry
 
 
 class Server:
@@ -20,6 +21,7 @@ class Server:
         self.DBManager = self.ini_DBManager()
         self.user_manager = self.ini_user_manager()
         self.model_manager = self.ini_model_manager()
+        self.services = self.ini_service_registry()
         self.app_routes = self.ini_app_routes()
         self.api_manager = self.ini_api_manager()
 
@@ -40,16 +42,19 @@ class Server:
     def ini_model_manager(self):
         return ModelManager(self.config_manager, self.DBManager)
 
+    def ini_service_registry(self):
+        return ServiceRegistry(
+            config_manager=self.config_manager,
+            db_manager=self.DBManager,
+            user_manager=self.user_manager,
+            model_manager=self.model_manager,
+        )
+
     def ini_app_routes(self):
         return AppRoutes(self.app, self.user_manager, self.DBManager)
 
     def ini_api_manager(self):
-        return ApiManager(
-            self.app,
-            self.user_manager,
-            self.DBManager,
-            self.model_manager,
-        )
+        return ApiManager(self.app, services=self.services)
 
     def run(self):
         runtime = self.config_manager.runtime

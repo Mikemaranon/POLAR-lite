@@ -1,6 +1,8 @@
 __pycache__
 .venv
+.polar-lite/
 agents.md
 TODO
+audit.md
 src-zertan
 .DS_Store

@@ -149,11 +149,23 @@
 .documents-file {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 12px;
     border: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.62);
     padding: 10px 12px;
     border-radius: var(--radius-sm);
+}
+
+.documents-file--pending {
+    border-style: dashed;
+    background: rgba(28, 139, 89, 0.06);
+}
+
+.documents-file__copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
 }
 
 .documents-file__name {

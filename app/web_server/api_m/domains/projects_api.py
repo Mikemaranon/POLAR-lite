@@ -1,14 +1,45 @@
 from flask import request
 
 from api_m.domains.base_api import BaseAPI
+from api_m.services import (
+    DocumentIngestionError,
+    ProjectDocumentService,
+    ProjectRequestError,
+    ProjectResourceNotFoundError,
+    ProjectService,
+)
 
 
 class ProjectsAPI(BaseAPI):
+    def __init__(self, app, user_manager=None, db=None, model_manager=None, services=None):
+        super().__init__(app, user_manager, db, model_manager, services=services)
+        if self.services:
+            self.project_service = self.services.project_service
+            self.project_document_service = self.services.project_document_service
+        else:
+            self.project_service = ProjectService(self.db)
+            self.project_document_service = ProjectDocumentService(self.db)
+
     def register(self):
         self.app.add_url_rule("/api/projects", view_func=self.handle_projects_get, methods=["GET"])
         self.app.add_url_rule("/api/projects", view_func=self.handle_projects_post, methods=["POST"])
         self.app.add_url_rule("/api/projects", view_func=self.handle_projects_patch, methods=["PATCH"])
         self.app.add_url_rule("/api/projects", view_func=self.handle_projects_delete, methods=["DELETE"])
+        self.app.add_url_rule(
+            "/api/projects/documents",
+            view_func=self.handle_project_documents_get,
+            methods=["GET"],
+        )
+        self.app.add_url_rule(
+            "/api/projects/documents",
+            view_func=self.handle_project_documents_post,
+            methods=["POST"],
+        )
+        self.app.add_url_rule(
+            "/api/projects/documents",
+            view_func=self.handle_project_documents_delete,
+            methods=["DELETE"],
+        )
 
     def handle_projects_get(self):
         auth = self.authenticate_request(request)
@@ -18,15 +49,17 @@ class ProjectsAPI(BaseAPI):
         project_id = request.args.get("id")
         if project_id:
             try:
-                project = self.db.projects.get(self.parse_int(project_id, "id"))
+                project = self.project_service.get_project(
+                    self.parse_int(project_id, "id")
+                )
+            except ProjectResourceNotFoundError as error:
+                return self.error(str(error), 404)
             except ValueError as error:
                 return self.error(str(error), 400)
 
-            if not project:
-                return self.error("Project not found", 404)
             return self.ok({"project": project})
 
-        return self.ok({"projects": self.db.projects.all()})
+        return self.ok({"projects": self.project_service.list_projects()})
 
     def handle_projects_post(self):
         auth = self.authenticate_request(request)
@@ -35,16 +68,11 @@ class ProjectsAPI(BaseAPI):
 
         data = self.get_request_json(request)
         try:
-            self.require_fields(data, "name")
-        except ValueError as error:
+            project = self.project_service.create_project(data)
+        except ProjectRequestError as error:
             return self.error(str(error), 400)
 
-        project_id = self.db.projects.create(
-            data["name"],
-            data.get("description"),
-            data.get("system_prompt", ""),
-        )
-        return self.ok({"project": self.db.projects.get(project_id)}, 201)
+        return self.ok({"project": project}, 201)
 
     def handle_projects_patch(self):
         auth = self.authenticate_request(request)
@@ -59,21 +87,12 @@ class ProjectsAPI(BaseAPI):
         except ValueError as error:
             return self.error(str(error), 400)
 
-        existing_project = self.db.projects.get(project_id)
-        if not existing_project:
-            return self.error("Project not found", 404)
+        try:
+            project = self.project_service.update_project(project_id, data)
+        except ProjectResourceNotFoundError as error:
+            return self.error(str(error), 404)
 
-        name = data.get("name", existing_project["name"])
-        description = data.get("description", existing_project.get("description"))
-        system_prompt = data.get("system_prompt", existing_project.get("system_prompt", ""))
-
-        self.db.projects.update(
-            project_id,
-            name,
-            description,
-            system_prompt,
-        )
-        return self.ok({"project": self.db.projects.get(project_id)})
+        return self.ok({"project": project})
 
     def handle_projects_delete(self):
         auth = self.authenticate_request(request)
@@ -86,9 +105,68 @@ class ProjectsAPI(BaseAPI):
         except ValueError as error:
             return self.error(str(error), 400)
 
-        project = self.db.projects.get(project_id)
-        if not project:
-            return self.error("Project not found", 404)
+        try:
+            payload = self.project_service.delete_project(project_id)
+        except ProjectResourceNotFoundError as error:
+            return self.error(str(error), 404)
 
-        self.db.projects.delete(project_id)
-        return self.ok({"deleted": True, "project_id": project_id})
+        return self.ok(payload)
+
+    def handle_project_documents_get(self):
+        auth = self.authenticate_request(request)
+        if auth is not True:
+            return auth
+
+        try:
+            project_id = self.parse_int(request.args.get("project_id"), "project_id")
+            self.require_fields({"project_id": project_id}, "project_id")
+        except ValueError as error:
+            return self.error(str(error), 400)
+
+        try:
+            documents = self.project_document_service.list_documents(project_id)
+        except LookupError as error:
+            return self.error(str(error), 404)
+
+        return self.ok({"documents": documents})
+
+    def handle_project_documents_post(self):
+        auth = self.authenticate_request(request)
+        if auth is not True:
+            return auth
+
+        try:
+            project_id = self.parse_int(request.form.get("project_id"), "project_id")
+            self.require_fields({"project_id": project_id}, "project_id")
+        except ValueError as error:
+            return self.error(str(error), 400)
+
+        try:
+            created_documents = self.project_document_service.create_documents(
+                project_id,
+                request.files.getlist("files"),
+            )
+        except DocumentIngestionError as error:
+            return self.error(str(error), 400)
+        except LookupError as error:
+            return self.error(str(error), 404)
+
+        return self.ok({"documents": created_documents}, 201)
+
+    def handle_project_documents_delete(self):
+        auth = self.authenticate_request(request)
+        if auth is not True:
+            return auth
+
+        try:
+            document_id = self.parse_int(request.args.get("id"), "id")
+            self.require_fields({"id": document_id}, "id")
+        except ValueError as error:
+            return self.error(str(error), 400)
+
+        try:
+            payload = self.project_document_service.delete_document(document_id)
+        except LookupError as error:
+            return self.error(str(error), 404)
+
+        return self.ok(payload)

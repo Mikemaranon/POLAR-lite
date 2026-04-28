@@ -38,7 +38,7 @@ class UserManager:
                 password_hash=hashed,
                 role="admin"
             )
-            print("[UserManager] Default admin user created (admin/admin)")
+            self._log_info("Default admin user created (admin/admin)")
 
 
     def authenticate(self, username: str, password: str):
@@ -129,7 +129,7 @@ class UserManager:
     # ========================================================
 
     def generate_token(self, username: str):
-        expiration_time = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        expiration_time = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)
         payload = {
             'username': username,
             'exp': expiration_time
@@ -172,3 +172,11 @@ class UserManager:
             # Corrupted token, remove it from the database
             self.db.sessions.delete(token)
             return False
+
+    def _log_info(self, message):
+        if hasattr(self.db, "logger"):
+            self.db.logger.log(
+                level="INFO",
+                source="UserManager",
+                message=message,
+            )

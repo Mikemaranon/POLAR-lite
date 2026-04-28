@@ -1,5 +1,9 @@
+import io
+import threading
+
 from tests.test_support import ApiTestCase
 from model_m import ProviderUnavailableError
+from api_m.domains.chat_api import ChatAPI
 
 
 class ApiEndpointTests(ApiTestCase):
@@ -122,6 +126,130 @@ class ApiEndpointTests(ApiTestCase):
         self.assertEqual(len(stored_messages), 2)
         self.assertEqual(stored_messages[0]["content"], "Dame ideas")
         self.assertEqual(stored_messages[1]["provider_message_id"], "resp-1")
+
+    def test_chat_endpoint_applies_project_context_and_documents(self):
+        project_id = self.db.projects.create(
+            "Launch Plan",
+            "Coordina el lanzamiento del producto.",
+            "Mantén el foco en hitos y riesgos.",
+        )
+        self.db.project_documents.create(
+            project_id=project_id,
+            filename="brief.md",
+            content_type="text/markdown",
+            size_bytes=42,
+            text_content="El lanzamiento será el 15 de mayo y requiere checklist de QA.",
+        )
+        profile_id = self.db.profiles.create(
+            name="Planner",
+            system_prompt="Responde con estructura clara.",
+            is_default=True,
+        )
+        conversation_id = self.db.conversations.create(
+            title="Launch sync",
+            project_id=project_id,
+            profile_id=profile_id,
+            provider="openai",
+            model="gpt-4.1",
+        )
+
+        captured = {}
+
+        def fake_chat(provider, messages, model, settings):
+            captured["messages"] = messages
+            return {
+                "provider": provider,
+                "model": model,
+                "message": {
+                    "role": "assistant",
+                    "content": "Aquí va el plan.",
+                },
+                "message_id": "resp-project-1",
+                "usage": {},
+                "finish_reason": "stop",
+                "raw": {},
+            }
+
+        self.model_manager.chat = fake_chat
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "conversation_id": conversation_id,
+                "messages": [{"role": "user", "content": "Prepara el lanzamiento."}],
+            },
+            headers=self.auth_headers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(captured["messages"][0]["role"], "system")
+        self.assertIn("Proyecto activo: Launch Plan", captured["messages"][0]["content"])
+        self.assertIn("Mantén el foco en hitos y riesgos.", captured["messages"][0]["content"])
+        self.assertIn("brief.md", captured["messages"][0]["content"])
+        self.assertIn("15 de mayo", captured["messages"][0]["content"])
+        self.assertIn("Responde con estructura clara.", captured["messages"][0]["content"])
+        self.assertEqual(captured["messages"][1]["content"], "Prepara el lanzamiento.")
+
+    def test_project_documents_can_be_uploaded_listed_and_deleted(self):
+        project_id = self.db.projects.create("Docs", "Subidas")
+
+        upload_response = self.client.post(
+            "/api/projects/documents",
+            data={
+                "project_id": str(project_id),
+                "files": [
+                    (io.BytesIO(b"Resumen del proyecto"), "brief.txt"),
+                    (io.BytesIO(b"{\"ok\": true}"), "metadata.json"),
+                ],
+            },
+            headers=self.auth_headers,
+            content_type="multipart/form-data",
+        )
+
+        upload_payload = upload_response.get_json()
+        list_response = self.client.get(
+            f"/api/projects/documents?project_id={project_id}",
+            headers=self.auth_headers,
+        )
+        listed_documents = list_response.get_json()["documents"]
+        first_document_id = upload_payload["documents"][0]["id"]
+        stored_document = self.db.project_documents.get(first_document_id)
+
+        delete_response = self.client.delete(
+            f"/api/projects/documents?id={first_document_id}",
+            headers=self.auth_headers,
+        )
+        list_after_delete = self.client.get(
+            f"/api/projects/documents?project_id={project_id}",
+            headers=self.auth_headers,
+        )
+
+        self.assertEqual(upload_response.status_code, 201)
+        self.assertEqual(len(upload_payload["documents"]), 2)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(listed_documents), 2)
+        self.assertEqual(listed_documents[0]["filename"], "brief.txt")
+        self.assertIn("Resumen del proyecto", stored_document["text_content"])
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertEqual(len(list_after_delete.get_json()["documents"]), 1)
+
+    def test_project_documents_reject_unsupported_binary_files(self):
+        project_id = self.db.projects.create("Docs", "Subidas")
+
+        response = self.client.post(
+            "/api/projects/documents",
+            data={
+                "project_id": str(project_id),
+                "files": [
+                    (io.BytesIO(b"%PDF-1.4 binary"), "contract.pdf"),
+                ],
+            },
+            headers=self.auth_headers,
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("not a supported text format", response.get_json()["error"])
 
     def test_chat_endpoint_generates_title_before_first_response(self):
         conversation_id = self.db.conversations.create(
@@ -313,7 +441,7 @@ class ApiEndpointTests(ApiTestCase):
         )
         captured = {}
 
-        def fake_stream_chat(provider, messages, model, settings):
+        def fake_stream_chat(provider, messages, model, settings, should_stop=None):
             captured["provider"] = provider
             captured["messages"] = messages
             captured["model"] = model
@@ -373,7 +501,7 @@ class ApiEndpointTests(ApiTestCase):
             model="mlx-community/gemma-3-4b-it-4bit",
         )
 
-        def failing_stream_chat(provider, messages, model, settings):
+        def failing_stream_chat(provider, messages, model, settings, should_stop=None):
             raise ProviderUnavailableError("MLX offline", provider="mlx")
             yield
 
@@ -398,6 +526,56 @@ class ApiEndpointTests(ApiTestCase):
         self.assertIn("MLX offline", payload)
         self.assertEqual(len(stored_messages), 1)
         self.assertEqual(stored_messages[0]["content"], "Guarda esto")
+
+    def test_chat_cancel_endpoint_marks_active_stream(self):
+        cancel_event = threading.Event()
+        ChatAPI._active_streams["stream-123"] = cancel_event
+
+        try:
+            response = self.client.post(
+                "/api/chat/cancel",
+                json={"request_id": "stream-123"},
+                headers=self.auth_headers,
+            )
+        finally:
+            ChatAPI._active_streams.pop("stream-123", None)
+
+        payload = response.get_json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["cancelled"])
+        self.assertEqual(payload["request_id"], "stream-123")
+        self.assertTrue(cancel_event.is_set())
+
+    def test_chat_endpoint_streams_error_event_when_unexpected_exception_happens(self):
+        conversation_id = self.db.conversations.create(
+            title="Streaming unexpected",
+            provider="mlx",
+            model="mlx-community/gemma-3-4b-it-4bit",
+        )
+
+        def failing_stream_chat(provider, messages, model, settings, should_stop=None):
+            raise RuntimeError("Tokenizer template exploded")
+            yield
+
+        self.model_manager.stream_chat = failing_stream_chat
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "conversation_id": conversation_id,
+                "messages": [{"role": "user", "content": "Hola"}],
+                "stream": True,
+            },
+            headers=self.auth_headers,
+            buffered=True,
+        )
+
+        payload = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: error", payload)
+        self.assertIn("Tokenizer template exploded", payload)
 
     def test_settings_endpoint_persists_api_key(self):
         write_response = self.client.post(

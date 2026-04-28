@@ -220,6 +220,50 @@ class ProviderManagerTests(unittest.TestCase):
         self.assertEqual(events[2]["response"]["usage"]["completion_tokens"], 2)
         self.assertTrue(fake_http.calls[0]["payload"]["stream"])
 
+    def test_openai_provider_stream_chat_can_stop_early(self):
+        os.environ["OPENAI_API_KEY"] = "test-key"
+        manager = ProviderManager(ConfigManager())
+        fake_http = FakeHttpClient(
+            sse_events=[
+                {
+                    "id": "chatcmpl-1",
+                    "model": "gpt-4.1",
+                    "choices": [
+                        {
+                            "delta": {"content": "Hola"},
+                            "finish_reason": None,
+                        }
+                    ],
+                },
+                {
+                    "id": "chatcmpl-1",
+                    "model": "gpt-4.1",
+                    "choices": [
+                        {
+                            "delta": {"content": " mundo"},
+                            "finish_reason": None,
+                        }
+                    ],
+                },
+            ]
+        )
+        provider = manager.get_provider("openai")
+        provider.http_client = fake_http
+
+        stop_checks = iter([False, True])
+        events = list(
+            provider.stream_chat(
+                [{"role": "user", "content": "Saluda"}],
+                "gpt-4.1",
+                should_stop=lambda: next(stop_checks, True),
+            )
+        )
+
+        self.assertEqual(events[0]["delta"], "Hola")
+        self.assertEqual(events[1]["response"]["message"]["content"], "Hola")
+        self.assertEqual(events[1]["response"]["finish_reason"], "cancelled")
+        self.assertTrue(events[1]["response"]["raw"]["cancelled"])
+
     def test_ollama_provider_chat_maps_common_settings(self):
         manager = ProviderManager(ConfigManager())
         fake_http = FakeHttpClient(
@@ -282,6 +326,39 @@ class ProviderManagerTests(unittest.TestCase):
         self.assertEqual(events[2]["response"]["message"]["content"], "Hola")
         self.assertEqual(events[2]["response"]["finish_reason"], "stop")
         self.assertTrue(fake_http.calls[0]["payload"]["stream"])
+
+    def test_ollama_provider_stream_chat_can_stop_early(self):
+        manager = ProviderManager(ConfigManager())
+        fake_http = FakeHttpClient(
+            json_lines=[
+                {
+                    "model": "gemma3",
+                    "message": {"role": "assistant", "content": "Ho"},
+                    "done": False,
+                },
+                {
+                    "model": "gemma3",
+                    "message": {"role": "assistant", "content": "la"},
+                    "done": False,
+                },
+            ]
+        )
+        provider = manager.get_provider("ollama")
+        provider.http_client = fake_http
+
+        stop_checks = iter([False, True])
+        events = list(
+            provider.stream_chat(
+                [{"role": "user", "content": "Hola"}],
+                "gemma3",
+                should_stop=lambda: next(stop_checks, True),
+            )
+        )
+
+        self.assertEqual(events[0]["delta"], "Ho")
+        self.assertEqual(events[1]["response"]["message"]["content"], "Ho")
+        self.assertEqual(events[1]["response"]["finish_reason"], "cancelled")
+        self.assertTrue(events[1]["response"]["raw"]["cancelled"])
 
     def test_ollama_provider_raises_for_json_error_payload(self):
         manager = ProviderManager(ConfigManager())

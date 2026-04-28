@@ -65,7 +65,7 @@ class ConversationsAPI(BaseAPI):
         data = self.get_request_json(request)
 
         default_profile = self.get_default_profile()
-        default_provider = self.model_manager.config_manager.providers.default_provider
+        default_provider = self.config_manager.providers.default_provider
 
         try:
             project_id = self.parse_int(data.get("project_id"), "project_id")

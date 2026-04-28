@@ -4,6 +4,7 @@ from .t_users import UsersTable
 from .t_sessions import SessionsTable
 from .t_agent_logs import AgentLogsTable
 from .t_projects import ProjectsTable
+from .t_project_documents import ProjectDocumentsTable
 from .t_profiles import ProfilesTable
 from .t_conversations import ConversationsTable
 from .t_messages import MessagesTable
@@ -15,6 +16,7 @@ __all__ = [
     "SessionsTable",
     "AgentLogsTable",
     "ProjectsTable",
+    "ProjectDocumentsTable",
     "ProfilesTable",
     "ConversationsTable",
     "MessagesTable",

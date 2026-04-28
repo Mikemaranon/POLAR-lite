@@ -1,0 +1,49 @@
+from api_m.services import (
+    ChatContextBuilder,
+    ChatPersistenceService,
+    ChatService,
+    ChatStreamService,
+    DocumentIngestionService,
+    ProjectDocumentService,
+    ProjectService,
+)
+
+
+class ServiceRegistry:
+    def __init__(
+        self,
+        *,
+        config_manager,
+        db_manager,
+        user_manager,
+        model_manager,
+    ):
+        self.config_manager = config_manager
+        self.db_manager = db_manager
+        self.user_manager = user_manager
+        self.model_manager = model_manager
+
+        self.chat_context_builder = ChatContextBuilder(db_manager)
+        self.chat_persistence_service = ChatPersistenceService(
+            db_manager,
+            model_manager,
+        )
+        self.chat_stream_service = ChatStreamService(
+            db_manager,
+            model_manager,
+            self.chat_persistence_service,
+        )
+        self.chat_service = ChatService(
+            db_manager,
+            model_manager,
+            self.chat_context_builder,
+            self.chat_persistence_service,
+            self.chat_stream_service,
+        )
+
+        self.document_ingestion_service = DocumentIngestionService()
+        self.project_service = ProjectService(db_manager)
+        self.project_document_service = ProjectDocumentService(
+            db_manager,
+            ingestion_service=self.document_ingestion_service,
+        )

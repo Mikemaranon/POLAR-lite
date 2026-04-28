@@ -1,0 +1,57 @@
+import { state } from "./state.js";
+
+
+export function getDefaultProfileId() {
+    return state.profiles.find((profile) => profile.is_default)?.id || state.profiles[0]?.id || null;
+}
+
+
+export function getProfileNameById(profileId) {
+    if (!profileId) {
+        return "sin perfil";
+    }
+
+    return state.profiles.find((profile) => profile.id === Number(profileId))?.name || "sin perfil";
+}
+
+
+export function getActiveProject() {
+    return state.projects.find((project) => project.id === state.activeProjectId) || null;
+}
+
+
+export function getProjectConversations(projectId = state.activeProjectId) {
+    if (!projectId) {
+        return [];
+    }
+
+    return state.conversations.filter((conversation) => conversation.project_id === projectId);
+}
+
+
+export function getStandaloneConversations() {
+    return state.conversations.filter((conversation) => !conversation.project_id);
+}
+
+
+export function getSelectedProfileId() {
+    if (state.activeConversation?.profile_id) {
+        return Number(state.activeConversation.profile_id);
+    }
+
+    if (state.pendingProfileId) {
+        return Number(state.pendingProfileId);
+    }
+
+    return getDefaultProfileId();
+}
+
+
+export function buildConversationTitle() {
+    const project = state.projects.find((item) => item.id === state.activeProjectId);
+    if (project) {
+        return `${project.name} · chat`;
+    }
+
+    return "Nueva conversación";
+}

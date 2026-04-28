@@ -43,7 +43,7 @@ export async function login(username, password) {
     }
 }
 
-export async function send_API_request(method, endpoint, body = null) {
+export async function send_API_request(method, endpoint, body = null, requestOptions = {}) {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
         throw new Error("No authentication token found.");
@@ -59,6 +59,10 @@ export async function send_API_request(method, endpoint, body = null) {
     
     if (body && method.toUpperCase() !== "GET") {
         options.body = JSON.stringify(body);
+    }
+
+    if (requestOptions.signal) {
+        options.signal = requestOptions.signal;
     }
 
     console.log("Fetching:", endpoint, options);

@@ -1,4 +1,4 @@
-import { delete_token, send_API_request } from "../SERVER_CONN/token-handler.js";
+import { delete_token, getToken, send_API_request } from "../SERVER_CONN/token-handler.js";
 
 
 export async function apiRequestJson(method, endpoint, body = null) {
@@ -31,6 +31,14 @@ export async function loadProjectsData() {
 
 export async function loadProfilesData() {
     return apiRequestJson("GET", "/api/profiles");
+}
+
+
+export async function loadProjectDocumentsData(projectId) {
+    return apiRequestJson(
+        "GET",
+        `/api/projects/documents?project_id=${encodeURIComponent(projectId)}`
+    );
 }
 
 
@@ -73,6 +81,23 @@ export async function deleteProject(projectId) {
 }
 
 
+export async function uploadProjectDocuments(projectId, files) {
+    const formData = new FormData();
+    formData.append("project_id", String(projectId));
+
+    for (const file of files || []) {
+        formData.append("files", file, file.name);
+    }
+
+    return apiRequestFormData("POST", "/api/projects/documents", formData);
+}
+
+
+export async function deleteProjectDocument(documentId) {
+    return apiRequestJson("DELETE", `/api/projects/documents?id=${encodeURIComponent(documentId)}`);
+}
+
+
 export async function createProfile(data) {
     return apiRequestJson("POST", "/api/profiles", data);
 }
@@ -106,10 +131,17 @@ export async function sendChat(data) {
 }
 
 
-export async function sendChatStream(data, handlers = {}) {
+export async function cancelChatStream(requestId) {
+    return apiRequestJson("POST", "/api/chat/cancel", { request_id: requestId });
+}
+
+
+export async function sendChatStream(data, handlers = {}, options = {}) {
     const response = await send_API_request("POST", "/api/chat", {
         ...data,
         stream: true,
+    }, {
+        signal: options.signal,
     });
 
     if (!response.ok) {
@@ -182,6 +214,28 @@ function ensureSuccessfulResponse(response, payload) {
 
         throw new Error(errorMessage);
     }
+}
+
+
+async function apiRequestFormData(method, endpoint, body) {
+    const token = getToken();
+    if (!token) {
+        delete_token();
+        window.location.href = "/login";
+        throw new Error("Tu sesión ha expirado.");
+    }
+
+    const response = await fetch(endpoint, {
+        method: method.toUpperCase(),
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+        body,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    ensureSuccessfulResponse(response, payload);
+    return payload;
 }
 
 
