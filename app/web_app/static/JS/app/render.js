@@ -1,7 +1,7 @@
 import { syncComposerAvailability } from "./composer-ui.js";
 import { renderChatSurface, renderConversationHeader, renderMessages, renderProviderControls, populateSettingsForm } from "./render/chat-render.js";
 import { renderProjectSpace, renderDocumentsFileList } from "./render/project-render.js";
-import { renderSettingsProfilesManager, renderSettingsSpace, renderProfilePicker } from "./render/settings-render.js";
+import { renderChatPanel, renderSettingsProfilesManager, renderSettingsSpace } from "./render/settings-render.js";
 import { renderConversations, renderProjects } from "./render/sidebar-render.js";
 
 
@@ -11,7 +11,7 @@ export function renderAll({ onProjectSelect, onConversationSelect, onConversatio
     renderProjectSpace(onConversationSelect, onConversationDelete);
     renderSettingsSpace();
     renderSettingsProfilesManager();
-    renderProfilePicker();
+    renderChatPanel();
     renderChatSurface();
     renderDocumentsFileList();
     syncComposerAvailability();
@@ -23,7 +23,7 @@ export {
     renderConversations,
     renderDocumentsFileList,
     renderMessages,
-    renderProfilePicker,
+    renderChatPanel,
     renderProjectSpace,
     renderProjects,
     renderProviderControls,

@@ -24,4 +24,5 @@ export const state = {
     activeGenerationRequestId: null,
     generationStopRequested: false,
     isSidebarOpen: false,
+    isChatPanelOpen: false,
 };

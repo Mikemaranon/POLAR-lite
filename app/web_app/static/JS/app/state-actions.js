@@ -112,6 +112,11 @@ export function setGenerationStopRequested(isRequested) {
 }
 
 
+export function setChatPanelOpen(isOpen) {
+    state.isChatPanelOpen = Boolean(isOpen);
+}
+
+
 export function applyProjectsPayload(data) {
     state.projects = data.projects || [];
 

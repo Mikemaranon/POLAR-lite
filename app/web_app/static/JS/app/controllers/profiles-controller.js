@@ -1,9 +1,9 @@
 import { createProfile, deleteProfile, updateConversation, updateProfile } from "../api.js";
 import { confirmAction } from "../dialogs.js";
 import { elements } from "../dom.js";
-import { openProfileModal, closeProfileModal } from "../modal-ui.js";
+import { closeProfileModal, closeProfileSwitchModal, openProfileModal, openProfileSwitchModal } from "../modal-ui.js";
 import { MAX_PROFILE_TAGS } from "../profile-helpers.js";
-import { renderConversationHeader, renderProfilePicker, renderSettingsProfilesManager } from "../render.js";
+import { renderChatPanel, renderConversationHeader, renderSettingsProfilesManager } from "../render.js";
 import { getDefaultProfileId } from "../selectors.js";
 import {
     applyConversationsPayload,
@@ -72,7 +72,7 @@ export async function handleProfileSubmit(event) {
         closeProfileModal();
 
         renderSettingsProfilesManager();
-        renderProfilePicker();
+        renderChatPanel();
         renderConversationHeader();
         showStatus(isEditing ? "Perfil actualizado." : "Perfil creado.");
     } catch (error) {
@@ -98,8 +98,8 @@ export async function handleProfileOptionSelect(profileId) {
             setPendingProfileId(profileId);
         }
 
-        closeProfilePicker();
-        renderProfilePicker();
+        closeProfileSwitchModal();
+        renderChatPanel();
         renderConversationHeader();
     } catch (error) {
         showStatus(error.message || "No se pudo cambiar el perfil del chat.", true);
@@ -108,6 +108,7 @@ export async function handleProfileOptionSelect(profileId) {
 
 
 export function openCreateProfileModal(context = "settings") {
+    closeProfileSwitchModal();
     setProfileModalState({
         mode: "create",
         profileId: null,
@@ -119,7 +120,7 @@ export function openCreateProfileModal(context = "settings") {
 }
 
 
-export function handleSettingsProfileEdit(profileId) {
+export function handleSettingsProfileEdit(profileId, context = "settings") {
     if (!profileId) {
         return;
     }
@@ -134,7 +135,7 @@ export function handleSettingsProfileEdit(profileId) {
     setProfileModalState({
         mode: "edit",
         profileId,
-        context: "settings",
+        context,
     });
     populateProfileModal(profile);
     renderSettingsProfilesManager();
@@ -186,7 +187,7 @@ export async function handleSettingsProfileDelete(profileId) {
         }
 
         renderSettingsProfilesManager();
-        renderProfilePicker();
+        renderChatPanel();
         renderConversationHeader();
         showStatus("Perfil borrado.");
     } catch (error) {
@@ -202,9 +203,9 @@ export function handleDocumentClick(event, { handleProjectDocumentDelete }) {
         return;
     }
 
-    const option = event.target.closest("[data-profile-option]");
+    const option = event.target.closest("[data-profile-switch-option]");
     if (option) {
-        handleProfileOptionSelect(Number(option.dataset.profileOption));
+        handleProfileOptionSelect(Number(option.dataset.profileSwitchOption));
         return;
     }
 
@@ -214,73 +215,34 @@ export function handleDocumentClick(event, { handleProjectDocumentDelete }) {
         return;
     }
 
+    const editChatProfileButton = event.target.closest("[data-edit-chat-profile-id]");
+    if (editChatProfileButton) {
+        handleSettingsProfileEdit(Number(editChatProfileButton.dataset.editChatProfileId), "chat-settings");
+        return;
+    }
+
     const deleteProfileButton = event.target.closest("[data-delete-profile-id]");
     if (deleteProfileButton) {
         handleSettingsProfileDelete(Number(deleteProfileButton.dataset.deleteProfileId));
-        return;
     }
-
-    if (!event.target.closest("#profile-picker")) {
-        closeProfilePicker();
-    }
-}
-
-
-export function handleDocumentFocusIn(event) {
-    if (event.target.id !== "profile-picker-search") {
-        return;
-    }
-
-    openProfilePicker();
-    filterProfileOptions(event.target.value);
 }
 
 
 export function handleDocumentInput(event) {
-    if (event.target.id !== "profile-picker-search") {
+    if (event.target.id !== "profile-switch-search") {
         return;
     }
 
-    openProfilePicker();
-    filterProfileOptions(event.target.value);
+    filterProfileSwitchOptions(event.target.value);
 }
 
 
-export function openProfilePicker() {
-    const panel = document.getElementById("profile-picker-panel");
-    const search = document.getElementById("profile-picker-search");
-
-    if (!panel) {
-        return;
-    }
-
-    panel.hidden = false;
-    if (search) {
-        search.setAttribute("aria-expanded", "true");
-    }
-}
-
-
-export function closeProfilePicker() {
-    const panel = document.getElementById("profile-picker-panel");
-    const search = document.getElementById("profile-picker-search");
-
-    if (!panel || panel.hidden) {
-        return false;
-    }
-
-    panel.hidden = true;
-    search?.setAttribute("aria-expanded", "false");
-    return true;
-}
-
-
-export function filterProfileOptions(query) {
+export function filterProfileSwitchOptions(query) {
     const normalized = String(query || "").trim().toLowerCase();
     let visibleCount = 0;
     let totalOptions = 0;
 
-    document.querySelectorAll("[data-profile-option]").forEach((node) => {
+    elements.profileSwitchResults?.querySelectorAll("[data-profile-switch-option]").forEach((node) => {
         totalOptions += 1;
         const matches = normalized ? node.textContent.toLowerCase().includes(normalized) : true;
         node.hidden = !matches;
@@ -289,14 +251,23 @@ export function filterProfileOptions(query) {
         }
     });
 
-    const emptyNode = document.getElementById("profile-picker-no-results");
-    const resultsNode = document.getElementById("profile-picker-results");
-
-    if (resultsNode) {
-        resultsNode.hidden = totalOptions > 0 && visibleCount === 0;
+    if (elements.profileSwitchResults) {
+        elements.profileSwitchResults.hidden = totalOptions > 0 && visibleCount === 0;
     }
-    if (emptyNode) {
-        emptyNode.hidden = visibleCount !== 0 || totalOptions === 0;
+    if (elements.profileSwitchNoResults) {
+        elements.profileSwitchNoResults.hidden = visibleCount !== 0 || totalOptions === 0;
+    }
+}
+
+
+export function openProfileSwitcher() {
+    renderChatPanel();
+    openProfileSwitchModal();
+    if (elements.profileSwitchSearchInput) {
+        elements.profileSwitchSearchInput.value = "";
+        elements.profileSwitchSearchInput.focus({ preventScroll: true });
+        elements.profileSwitchSearchInput.select();
+        filterProfileSwitchOptions(elements.profileSwitchSearchInput.value);
     }
 }
 

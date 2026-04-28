@@ -112,263 +112,338 @@
         </aside>
 
         <main class="workspace">
-            <header class="workspace__topbar">
-                <div class="workspace__topbar-row">
-                    <div class="workspace__topbar-main">
-                        <button
-                            id="sidebar-toggle-button"
-                            class="icon-button sidebar-toggle"
-                            type="button"
-                            aria-label="Abrir navegación lateral"
-                            aria-controls="app-sidebar"
-                            aria-expanded="false"
-                        >
-                            <span class="sidebar-toggle__lines" aria-hidden="true">
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                            </span>
-                        </button>
+            <section id="workspace-stage" class="workspace-stage">
+                <button
+                    id="chat-panel-backdrop"
+                    class="chat-panel-backdrop"
+                    type="button"
+                    aria-label="Cerrar panel del chat"
+                    tabindex="-1"
+                ></button>
 
-                        <div class="workspace__identity">
-                            <p id="workspace-eyebrow" class="workspace__eyebrow">Chat</p>
-                            <h2 id="conversation-title" class="workspace__title">Nueva conversación</h2>
-                        </div>
-                    </div>
+                <div class="workspace-main">
+                    <header class="workspace__topbar">
+                        <div class="workspace__topbar-row">
+                            <div class="workspace__topbar-main">
+                                <button
+                                    id="sidebar-toggle-button"
+                                    class="icon-button sidebar-toggle"
+                                    type="button"
+                                    aria-label="Abrir navegación lateral"
+                                    aria-controls="app-sidebar"
+                                    aria-expanded="false"
+                                >
+                                    <span class="sidebar-toggle__lines" aria-hidden="true">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </span>
+                                </button>
 
-                    <div class="workspace__header-actions">
-                        <button id="back-to-project-button" class="ghost-button workspace__back-button" type="button" hidden>
-                            Volver al proyecto
-                        </button>
-                        <button id="chat-settings-button" class="ghost-button workspace__settings-button" type="button">
-                            Ajustes del chat
-                        </button>
-                    </div>
-                </div>
-
-                <div id="conversation-meta" class="workspace__meta" hidden></div>
-                <p id="conversation-subtitle" class="workspace__subtitle">
-                    Abre ajustes para elegir proveedor, modelo y perfil antes de empezar.
-                </p>
-            </header>
-
-            <section
-                id="status-banner"
-                class="status-banner"
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                hidden
-            >
-                <div class="status-banner__content">
-                    <p id="status-banner-message" class="status-banner__message"></p>
-                    <button
-                        id="status-banner-close"
-                        class="status-banner__close"
-                        type="button"
-                        aria-label="Cerrar notificación"
-                        title="Cerrar"
-                    >
-                        ×
-                    </button>
-                </div>
-            </section>
-
-            <section class="chat-surface">
-                <div id="empty-state" class="empty-state">
-                    <p class="empty-state__eyebrow">POLAR lite</p>
-                    <h3>Tu espacio local para conversar con modelos.</h3>
-                    <p>
-                        Crea un chat, abre ajustes generales para el modelo y usa los ajustes del chat para elegir el perfil sin salir de esta vista.
-                    </p>
-                    <div class="prompt-grid">
-                        <button class="prompt-card" type="button" data-prompt="Resume este proyecto y dime en qué estado está.">
-                            <span class="prompt-card__kicker">Proyecto</span>
-                            <strong>Resumen del proyecto</strong>
-                        </button>
-                        <button class="prompt-card" type="button" data-prompt="Ayúdame a diseñar una estrategia para refactorizar este módulo sin romper compatibilidad.">
-                            <span class="prompt-card__kicker">Refactor</span>
-                            <strong>Plan de refactor</strong>
-                        </button>
-                        <button class="prompt-card" type="button" data-prompt="Quiero ideas para mejorar la UX de esta aplicación de chat manteniendo vanilla JS.">
-                            <span class="prompt-card__kicker">UX</span>
-                            <strong>Ideas de producto</strong>
-                        </button>
-                        <button class="prompt-card" type="button" data-prompt="Escribe un primer prompt de sistema para un perfil orientado a programación.">
-                            <span class="prompt-card__kicker">Perfil</span>
-                            <strong>Crear perfil</strong>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="project-space" class="project-space" hidden>
-                    <section class="project-space__hero">
-                        <div>
-                            <p class="project-space__eyebrow">Proyecto activo</p>
-                            <h3 id="project-space-title" class="project-space__title">Proyecto</h3>
-                            <p id="project-space-description" class="project-space__description">
-                                Este proyecto agrupa sus propios chats y contexto.
-                            </p>
-                        </div>
-                        <div class="project-space__actions">
-                            <button
-                                id="add-documents-button"
-                                class="ghost-button"
-                                type="button"
-                            >
-                                Agregar documentos
-                            </button>
-                            <button
-                                id="customize-project-button"
-                                class="ghost-button"
-                                type="button"
-                            >
-                                Personalizar
-                            </button>
-                            <button
-                                id="new-project-chat-button"
-                                class="list-add-button list-add-button--large"
-                                type="button"
-                                aria-label="Crear chat en este proyecto"
-                                title="Nuevo chat del proyecto"
-                            >
-                                +
-                            </button>
-                        </div>
-                    </section>
-
-                    <section class="project-panel project-panel--chat-list">
-                        <div class="project-panel__header">
-                            <h4>Chats del proyecto</h4>
-                            <span id="project-chat-count" class="project-panel__meta">0 chats</span>
-                        </div>
-                        <div id="project-conversations-list" class="project-conversations-list"></div>
-                    </section>
-                </div>
-
-                <div id="settings-space" class="settings-space" hidden>
-                    <section class="settings-space__hero">
-                        <div>
-                            <p class="settings-space__eyebrow">Configuración</p>
-                            <h3 class="settings-space__title">Ajustes generales</h3>
-                            <p class="settings-space__description">
-                                Configura proveedor, modelo y conexión del entorno local. Desde aquí también puedes revisar y editar los perfiles disponibles.
-                            </p>
-                        </div>
-                    </section>
-
-                    <div class="settings-space__grid">
-                        <section class="settings-block">
-                            <h4>Modelo activo</h4>
-                            <div class="stack-form">
-                                <label class="field field--stacked">
-                                    <span>Proveedor</span>
-                                    <select id="provider-select"></select>
-                                </label>
-                                <label class="field field--stacked">
-                                    <span>Modelo disponible</span>
-                                    <select id="model-select"></select>
-                                </label>
+                                <div class="workspace__identity">
+                                    <p id="workspace-eyebrow" class="workspace__eyebrow">Chat</p>
+                                    <h2 id="conversation-title" class="workspace__title">Nueva conversación</h2>
+                                </div>
                             </div>
-                        </section>
 
-                        <section class="settings-block">
-                            <h4>Claves y conexión</h4>
-                            <form id="settings-form" class="stack-form">
-                                <label class="field field--stacked">
-                                    <span>Proveedor cloud</span>
-                                    <select id="cloud-provider-select"></select>
-                                </label>
-                                <label class="field field--stacked">
-                                    <span id="cloud-api-key-label">Cloud API key</span>
-                                    <input id="openai-api-key-input" type="password" placeholder="Selecciona OpenAI, Anthropic o Google">
-                                </label>
-                                <button class="action-button action-button--primary" type="submit">Guardar ajustes</button>
-                            </form>
-                        </section>
+                            <div class="workspace__header-actions">
+                                <button id="back-to-project-button" class="ghost-button workspace__back-button" type="button" hidden>
+                                    Volver al proyecto
+                                </button>
+                                <button
+                                    id="chat-settings-button"
+                                    class="ghost-button workspace__settings-button"
+                                    type="button"
+                                    aria-controls="chat-side-panel"
+                                    aria-expanded="false"
+                                >
+                                    Ajustes
+                                </button>
+                            </div>
+                        </div>
 
-                        <section class="settings-block settings-block--profiles">
-                            <div class="settings-block__header-row">
+                        <div id="conversation-meta" class="workspace__meta" hidden></div>
+                        <p id="conversation-subtitle" class="workspace__subtitle">
+                            Abre ajustes para elegir proveedor, modelo y perfil antes de empezar.
+                        </p>
+                    </header>
+
+                    <section
+                        id="status-banner"
+                        class="status-banner"
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                        hidden
+                    >
+                        <div class="status-banner__content">
+                            <p id="status-banner-message" class="status-banner__message"></p>
+                            <button
+                                id="status-banner-close"
+                                class="status-banner__close"
+                                type="button"
+                                aria-label="Cerrar notificación"
+                                title="Cerrar"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="chat-surface">
+                        <div id="empty-state" class="empty-state">
+                            <p class="empty-state__eyebrow">POLAR lite</p>
+                            <h3>Tu espacio local para conversar con modelos.</h3>
+                            <p>
+                                Crea un chat, abre ajustes generales para el modelo y usa el panel del chat para elegir perfil y preparar herramientas sin salir de esta vista.
+                            </p>
+                            <div class="prompt-grid">
+                                <button class="prompt-card" type="button" data-prompt="Resume este proyecto y dime en qué estado está.">
+                                    <span class="prompt-card__kicker">Proyecto</span>
+                                    <strong>Resumen del proyecto</strong>
+                                </button>
+                                <button class="prompt-card" type="button" data-prompt="Ayúdame a diseñar una estrategia para refactorizar este módulo sin romper compatibilidad.">
+                                    <span class="prompt-card__kicker">Refactor</span>
+                                    <strong>Plan de refactor</strong>
+                                </button>
+                                <button class="prompt-card" type="button" data-prompt="Quiero ideas para mejorar la UX de esta aplicación de chat manteniendo vanilla JS.">
+                                    <span class="prompt-card__kicker">UX</span>
+                                    <strong>Ideas de producto</strong>
+                                </button>
+                                <button class="prompt-card" type="button" data-prompt="Escribe un primer prompt de sistema para un perfil orientado a programación.">
+                                    <span class="prompt-card__kicker">Perfil</span>
+                                    <strong>Crear perfil</strong>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="project-space" class="project-space" hidden>
+                            <section class="project-space__hero">
                                 <div>
-                                    <h4>Perfiles</h4>
-                                    <p class="settings-block__copy">
-                                        Visualiza los perfiles actuales y edítalos sin salir de los ajustes generales.
+                                    <p class="project-space__eyebrow">Proyecto activo</p>
+                                    <h3 id="project-space-title" class="project-space__title">Proyecto</h3>
+                                    <p id="project-space-description" class="project-space__description">
+                                        Este proyecto agrupa sus propios chats y contexto.
                                     </p>
                                 </div>
-                                <button id="settings-new-profile-button" class="action-button" type="button">Nuevo perfil</button>
-                            </div>
+                                <div class="project-space__actions">
+                                    <button
+                                        id="add-documents-button"
+                                        class="ghost-button"
+                                        type="button"
+                                    >
+                                        Agregar documentos
+                                    </button>
+                                    <button
+                                        id="customize-project-button"
+                                        class="ghost-button"
+                                        type="button"
+                                    >
+                                        Personalizar
+                                    </button>
+                                    <button
+                                        id="new-project-chat-button"
+                                        class="list-add-button list-add-button--large"
+                                        type="button"
+                                        aria-label="Crear chat en este proyecto"
+                                        title="Nuevo chat del proyecto"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </section>
 
-                            <div class="profiles-manager">
-                                <div id="settings-profiles-list" class="profiles-manager__list" aria-live="polite"></div>
-                            </div>
-                        </section>
+                            <section class="project-panel project-panel--chat-list">
+                                <div class="project-panel__header">
+                                    <h4>Chats del proyecto</h4>
+                                    <span id="project-chat-count" class="project-panel__meta">0 chats</span>
+                                </div>
+                                <div id="project-conversations-list" class="project-conversations-list"></div>
+                            </section>
+                        </div>
 
-                        <section class="settings-block settings-block--session settings-space__session">
-                            <h4>Sesión</h4>
-                            <p class="settings-block__copy">
-                                Cierra la sesión actual cuando hayas terminado de trabajar en este equipo.
+                        <div id="settings-space" class="settings-space" hidden>
+                            <section class="settings-space__hero">
+                                <div>
+                                    <p class="settings-space__eyebrow">Configuración</p>
+                                    <h3 class="settings-space__title">Ajustes generales</h3>
+                                    <p class="settings-space__description">
+                                        Configura proveedor, modelo y conexión del entorno local. Desde aquí también puedes revisar y editar los perfiles disponibles.
+                                    </p>
+                                </div>
+                            </section>
+
+                            <div class="settings-space__grid">
+                                <section class="settings-block">
+                                    <h4>Modelo activo</h4>
+                                    <div class="stack-form">
+                                        <label class="field field--stacked">
+                                            <span>Proveedor</span>
+                                            <select id="provider-select"></select>
+                                        </label>
+                                        <label class="field field--stacked">
+                                            <span>Modelo disponible</span>
+                                            <select id="model-select"></select>
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section class="settings-block">
+                                    <h4>Claves y conexión</h4>
+                                    <form id="settings-form" class="stack-form">
+                                        <label class="field field--stacked">
+                                            <span>Proveedor cloud</span>
+                                            <select id="cloud-provider-select"></select>
+                                        </label>
+                                        <label class="field field--stacked">
+                                            <span id="cloud-api-key-label">Cloud API key</span>
+                                            <input id="openai-api-key-input" type="password" placeholder="Selecciona OpenAI, Anthropic o Google">
+                                        </label>
+                                        <button class="action-button action-button--primary" type="submit">Guardar ajustes</button>
+                                    </form>
+                                </section>
+
+                                <section class="settings-block settings-block--profiles">
+                                    <div class="settings-block__header-row">
+                                        <div>
+                                            <h4>Perfiles</h4>
+                                            <p class="settings-block__copy">
+                                                Visualiza los perfiles actuales y edítalos sin salir de los ajustes generales.
+                                            </p>
+                                        </div>
+                                        <button id="settings-new-profile-button" class="action-button" type="button">Nuevo perfil</button>
+                                    </div>
+
+                                    <div class="profiles-manager">
+                                        <div id="settings-profiles-list" class="profiles-manager__list" aria-live="polite"></div>
+                                    </div>
+                                </section>
+
+                                <section class="settings-block settings-block--session settings-space__session">
+                                    <h4>Sesión</h4>
+                                    <p class="settings-block__copy">
+                                        Cierra la sesión actual cuando hayas terminado de trabajar en este equipo.
+                                    </p>
+                                    <button class="ghost-button" id="logout-button" type="button">Cerrar sesión</button>
+                                </section>
+                            </div>
+                        </div>
+
+                        <div id="messages-container" class="messages-container" hidden></div>
+                    </section>
+
+                    <footer class="composer-shell">
+                        <form id="composer-form" class="composer">
+                            <div class="composer__surface">
+                                <textarea
+                                    id="composer-input"
+                                    rows="1"
+                                    placeholder="Pregunta cualquier cosa..."
+                                ></textarea>
+                                <div class="composer__actions">
+                                    <div id="composer-hint" class="composer__hint">
+                                        `Shift + Enter` para salto de línea
+                                    </div>
+                                    <button
+                                        id="send-button"
+                                        class="action-button action-button--primary composer__send"
+                                        type="button"
+                                        aria-label="Enviar"
+                                        title="Enviar"
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M3 20v-6l8-2-8-2V4l19 8-19 8z" fill="currentColor"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="composer__footer-note">
+                                POLAR lite puede responder usando MLX, Ollama u OpenAI según tu configuración activa.
                             </p>
-                            <button class="ghost-button" id="logout-button" type="button">Cerrar sesión</button>
-                        </section>
-                    </div>
+                        </form>
+                    </footer>
                 </div>
 
-                <div id="messages-container" class="messages-container" hidden></div>
-            </section>
-
-            <footer class="composer-shell">
-                <form id="composer-form" class="composer">
-                    <div class="composer__surface">
-                        <textarea
-                            id="composer-input"
-                            rows="1"
-                            placeholder="Pregunta cualquier cosa..."
-                        ></textarea>
-                        <div class="composer__actions">
-                            <div id="composer-hint" class="composer__hint">
-                                `Shift + Enter` para salto de línea
-                            </div>
-                            <button
-                                id="send-button"
-                                class="action-button action-button--primary composer__send"
-                                type="button"
-                                aria-label="Enviar"
-                                title="Enviar"
-                            >
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                    <path d="M3 20v-6l8-2-8-2V4l19 8-19 8z" fill="currentColor"></path>
-                                </svg>
-                            </button>
+                <aside id="chat-side-panel" class="chat-side-panel" aria-label="Panel lateral del chat" aria-hidden="true">
+                    <div class="chat-side-panel__header">
+                        <div>
+                            <p class="modal__eyebrow">Chat</p>
+                            <h3>Sidebar de ajustes</h3>
+                            <p class="chat-side-panel__subtitle">
+                                Todo lo que afecta al chat actual, agrupado por secciones.
+                            </p>
                         </div>
                     </div>
-                    <p class="composer__footer-note">
-                        POLAR lite puede responder usando MLX, Ollama u OpenAI según tu configuración activa.
-                    </p>
-                </form>
-            </footer>
+
+                    <div class="chat-side-panel__body">
+                        <details
+                            class="chat-sidebar-section chat-sidebar-section--top"
+                            data-chat-sidebar-section="profile"
+                        >
+                            <summary class="chat-sidebar-section__summary">
+                                <span class="chat-sidebar-section__label">Perfil</span>
+                                <span class="chat-sidebar-section__meta">Prompt y comportamiento</span>
+                            </summary>
+                            <div class="chat-sidebar-section__content">
+                                <div class="chat-sidebar-section__content-inner">
+                                    <div id="chat-profile-card" class="chat-profile-card" aria-live="polite"></div>
+                                    <div class="settings-block__actions chat-sidebar-section__actions">
+                                        <button id="new-profile-button" class="action-button" type="button">Crear</button>
+                                        <button id="change-profile-button" class="ghost-button" type="button">Cambiar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <details
+                            class="chat-sidebar-section chat-sidebar-section--bottom"
+                            data-chat-sidebar-section="tools"
+                        >
+                            <summary class="chat-sidebar-section__summary">
+                                <span class="chat-sidebar-section__label">Tools</span>
+                                <span class="chat-sidebar-section__meta">Preparadas para la siguiente fase</span>
+                            </summary>
+                            <div class="chat-sidebar-section__content">
+                                <div class="chat-sidebar-section__content-inner">
+                                    <div id="chat-tools-list" class="chat-tools-list" aria-live="polite"></div>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </aside>
+            </section>
         </main>
     </div>
 
-    <div id="chat-settings-modal" class="modal" hidden>
-        <div class="modal__backdrop" data-close-modal="true"></div>
-        <div class="modal__panel modal__panel--narrow">
+    <div id="profile-switch-modal" class="modal" hidden>
+        <div class="modal__backdrop" data-close-profile-switch-modal="true"></div>
+        <div class="modal__panel modal__panel--narrow modal__panel--profile-switch">
             <div class="modal__header">
                 <div>
-                    <p class="modal__eyebrow">Chat</p>
-                    <h3>Ajustes del chat</h3>
+                    <p class="modal__eyebrow">Perfil</p>
+                    <h3>Cambiar perfil</h3>
                 </div>
-                <button id="close-settings-button" class="icon-button" type="button" aria-label="Cerrar ajustes">×</button>
+                <button id="close-profile-switch-button" class="icon-button" type="button" aria-label="Cerrar selector de perfiles">×</button>
             </div>
 
             <div class="modal__body">
                 <section class="settings-block">
-                    <h4>Perfil del chat</h4>
+                    <h4>Buscar perfil</h4>
                     <p class="settings-block__copy">
                         Elige el perfil que se aplicará a este chat o al próximo que abras.
                     </p>
-                    <div id="profile-picker" class="profile-picker"></div>
-                    <div class="settings-block__actions">
-                        <button id="new-profile-button" class="action-button" type="button">Crear perfil</button>
+                    <label class="field field--stacked profile-switch__search-field">
+                        <span>Barra de búsqueda</span>
+                        <input
+                            id="profile-switch-search"
+                            type="search"
+                            placeholder="Busca por nombre, personalidad o prompt..."
+                            autocomplete="off"
+                        >
+                    </label>
+                    <div id="profile-switch-results" class="profile-switch__results" aria-live="polite"></div>
+                    <div id="profile-switch-no-results" class="profile-switch__empty" hidden>
+                        No hay perfiles que coincidan con la búsqueda actual.
                     </div>
                 </section>
             </div>

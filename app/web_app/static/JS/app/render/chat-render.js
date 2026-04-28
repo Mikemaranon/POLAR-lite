@@ -188,7 +188,7 @@ export function renderConversationHeader() {
     if (state.workspaceMode === "home") {
         elements.workspaceEyebrow.textContent = "Chat";
         elements.conversationTitle.textContent = "Nueva conversación";
-        elements.conversationSubtitle.textContent = "Abre ajustes generales para configurar el modelo y ajustes del chat para elegir el perfil.";
+        elements.conversationSubtitle.textContent = "Abre ajustes generales para configurar el modelo y usa el panel del chat para elegir perfil y tools.";
         elements.conversationMeta.innerHTML = "";
         elements.conversationMeta.hidden = true;
         elements.conversationSubtitle.hidden = false;

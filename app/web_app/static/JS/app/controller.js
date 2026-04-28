@@ -17,21 +17,25 @@ import {
 } from "./controllers/chat-controller.js";
 import {
     bindSidebarViewportChangeListener,
+    closeChatPanel,
     closeSidebar,
     closeSidebarOnMobile,
     dismissStatusBanner,
+    handleChatSidebarClick,
     handleDocumentKeyDown,
     handleMessagesWheel,
+    syncChatSidebarSections,
+    syncChatPanelVisibility,
     syncSidebarVisibility,
+    toggleChatPanel,
     toggleSidebar,
 } from "./controllers/layout-controller.js";
 import {
     handleDocumentClick,
-    handleDocumentFocusIn,
     handleDocumentInput,
     handleProfileSubmit,
     openCreateProfileModal,
-    closeProfilePicker,
+    openProfileSwitcher,
 } from "./controllers/profiles-controller.js";
 import {
     handleBackToProject,
@@ -52,11 +56,10 @@ import { ensureAuthenticated, handleLogout } from "./controllers/session-control
 import { handleSettingsSubmit } from "./controllers/settings-controller.js";
 import { elements } from "./dom.js";
 import {
-    closeChatSettingsModal,
     closeDocumentsModal,
     closeProfileModal,
+    closeProfileSwitchModal,
     closeProjectCustomizeModal,
-    openChatSettingsModal,
     openProjectCustomizeModal,
 } from "./modal-ui.js";
 import {
@@ -105,6 +108,8 @@ export async function bootApp() {
     applyConversationsPayload(conversationsData);
     enterHomeWorkspace();
     syncSidebarVisibility();
+    syncChatPanelVisibility();
+    syncChatSidebarSections();
     renderApp();
 }
 
@@ -133,9 +138,12 @@ export function bindUI() {
     elements.addDocumentsButton?.addEventListener("click", handleDocumentsOpen);
     elements.customizeProjectButton?.addEventListener("click", openProjectCustomizeModal);
     elements.workspaceSettingsButton?.addEventListener("click", () => handleWorkspaceSettingsOpen({ closeSidebarOnMobile }));
-    elements.chatSettingsButton?.addEventListener("click", openChatSettingsModal);
+    elements.chatSettingsButton?.addEventListener("click", toggleChatPanel);
+    elements.chatPanelBackdrop?.addEventListener("click", closeChatPanel);
+    elements.chatSidePanel?.addEventListener("click", handleChatSidebarClick);
     elements.backToProjectButton?.addEventListener("click", handleBackToProject);
-    elements.closeSettingsButton.addEventListener("click", closeChatSettingsModal);
+    elements.changeProfileButton?.addEventListener("click", openProfileSwitcher);
+    elements.closeProfileSwitchButton?.addEventListener("click", closeProfileSwitchModal);
     elements.closeProfileButton?.addEventListener("click", closeProfileModal);
     elements.closeProjectCustomizeButton?.addEventListener("click", closeProjectCustomizeModal);
     elements.closeDocumentsButton?.addEventListener("click", closeDocumentsModal);
@@ -156,11 +164,11 @@ export function bindUI() {
         disableMessagesAutoScroll,
     }), { passive: true });
     elements.logoutButton.addEventListener("click", handleLogout);
-    elements.chatSettingsModal.addEventListener("click", handleChatSettingsModalClick);
+    elements.profileSwitchModal?.addEventListener("click", handleProfileSwitchModalClick);
     elements.profileModal?.addEventListener("click", handleProfileModalClick);
     elements.projectCustomizeModal?.addEventListener("click", handleProjectModalClick);
     elements.documentsModal?.addEventListener("click", handleDocumentsModalClick);
-    document.addEventListener("keydown", (event) => handleDocumentKeyDown(event, { closeProfilePicker }));
+    document.addEventListener("keydown", handleDocumentKeyDown);
     document.querySelectorAll("[data-prompt]").forEach((element) => {
         element.addEventListener("click", () => {
             elements.composerInput.value = element.dataset.prompt || "";
@@ -169,18 +177,18 @@ export function bindUI() {
         });
     });
     document.addEventListener("click", (event) => handleDocumentClick(event, { handleProjectDocumentDelete }));
-    document.addEventListener("focusin", handleDocumentFocusIn);
     document.addEventListener("input", handleDocumentInput);
     bindSidebarViewportChangeListener();
+    syncChatSidebarSections();
 }
 
 
 export { ensureAuthenticated };
 
 
-function handleChatSettingsModalClick(event) {
-    if (event.target.dataset.closeModal === "true") {
-        closeChatSettingsModal();
+function handleProfileSwitchModalClick(event) {
+    if (event.target.dataset.closeProfileSwitchModal === "true") {
+        closeProfileSwitchModal();
     }
 }
 

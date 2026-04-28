@@ -28,6 +28,7 @@ import { state } from "../state.js";
 import { showStatus } from "../status-ui.js";
 import { loadConversations, loadProjectDocuments, loadProjects } from "../store.js";
 import { getActualProvider, getSelectedModel } from "../provider-helpers.js";
+import { closeChatPanel } from "./layout-controller.js";
 
 
 export async function handleProjectSelect(projectId, { closeSidebarOnMobile }) {
@@ -99,6 +100,7 @@ export async function handleNewProjectChat({ handleConversationSelect, closeSide
 
 export function handleWorkspaceSettingsOpen({ closeSidebarOnMobile }) {
     enterSettingsWorkspace();
+    closeChatPanel();
     renderApp();
     closeSidebarOnMobile();
 }

@@ -41,6 +41,46 @@
     }
 }
 
+@media (max-width: 1180px) {
+    .workspace-stage,
+    .workspace-stage.is-chat-panel-open {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-main {
+        padding-right: 10;
+    }
+
+    .chat-panel-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        border: none;
+        padding: 0;
+        background: var(--overlay);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 9;
+        transition: opacity 0.24s ease;
+    }
+
+    .workspace-stage.is-chat-panel-open .chat-panel-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .chat-side-panel {
+        position: fixed;
+        inset: 0 0 0 auto;
+        width: min(86vw, var(--chat-sidebar-width));
+        height: 100dvh;
+        z-index: 10;
+        border-left: 1px solid var(--line-strong);
+        box-shadow: var(--shadow-modal);
+        transform: translateX(102%);
+    }
+}
+
 @media (max-width: 820px) {
     .workspace__topbar-main {
         min-width: 0;
@@ -68,6 +108,7 @@
         flex-direction: row;
         align-items: center;
         justify-content: flex-end;
+        flex-wrap: wrap;
     }
 
     .list-add-button--large {
@@ -135,8 +176,13 @@
         height: 28px;
     }
 
-    .workspace {
+    .workspace-main {
         padding: 18px 14px 14px;
+    }
+
+    .workspace__settings-button,
+    .workspace__back-button {
+        min-width: 0;
     }
 
     .project-panel {

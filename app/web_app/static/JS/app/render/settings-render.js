@@ -5,6 +5,29 @@ import { getDefaultProfileId, getSelectedProfileId } from "../selectors.js";
 import { setSelectedSettingsProfileId } from "../state-actions.js";
 import { state } from "../state.js";
 
+const CHAT_TOOL_PREVIEW_ITEMS = [
+    {
+        name: "Buscar en internet",
+        summary: "Consulta fuentes web antes de responder.",
+    },
+    {
+        name: "Calculadora",
+        summary: "Resuelve operaciones y conversiones rápidas.",
+    },
+    {
+        name: "Fecha actual",
+        summary: "Devuelve fecha y zona horaria locales.",
+    },
+    {
+        name: "Resumen de archivos",
+        summary: "Preparada para revisar contexto del proyecto.",
+    },
+    {
+        name: "Notas del proyecto",
+        summary: "Pensada para recuperar apuntes guardados.",
+    },
+];
+
 
 export function renderSettingsSpace() {
     elements.settingsSpace.hidden = state.workspaceMode !== "settings";
@@ -75,63 +98,132 @@ export function renderSettingsProfilesManager() {
 }
 
 
-export function renderProfilePicker() {
-    if (!elements.profilePicker) {
+export function renderChatPanel() {
+    renderChatToolsList();
+    renderChatProfileCard();
+    renderProfileSwitchModal();
+}
+
+
+export function renderProfileSwitchModal() {
+    if (!elements.profileSwitchResults) {
         return;
     }
 
     const profiles = state.profiles || [];
     const selectedProfileId = getSelectedProfileId();
-    const selectedProfile = profiles.find((profile) => profile.id === Number(selectedProfileId)) || null;
+    const query = elements.profileSwitchSearchInput?.value || "";
 
-    const optionsMarkup = profiles.length
+    elements.profileSwitchResults.innerHTML = profiles.length
         ? profiles.map((profile) => {
             const isSelected = profile.id === Number(selectedProfileId);
             const suffix = profile.is_default ? " · default" : "";
             return `
                 <button
-                    class="profile-picker__option${isSelected ? " is-selected" : ""}"
+                    class="profile-switch__option${isSelected ? " is-selected" : ""}"
                     type="button"
-                    data-profile-option="${profile.id}"
+                    data-profile-switch-option="${profile.id}"
                 >
-                    <span class="profile-picker__option-name">${escapeHtml(profile.name)}</span>
-                    <span class="profile-picker__option-meta">${escapeHtml((profile.system_prompt || "Sin system prompt") + suffix)}</span>
+                    <span class="profile-switch__option-name">${escapeHtml(profile.name)}</span>
+                    <span class="profile-switch__option-meta">${escapeHtml((profile.system_prompt || "Sin system prompt") + suffix)}</span>
                 </button>
             `;
         }).join("")
-        : `<div class="profile-picker__empty">Todavía no hay perfiles. Crea el primero desde aquí.</div>`;
+        : `<div class="profile-switch__empty">Todavía no hay perfiles. Crea el primero desde el panel del chat o desde ajustes.</div>`;
 
-    elements.profilePicker.innerHTML = `
-        <div class="selection-field">
-            <div class="selection-field__search">
-                <div class="profile-picker__search-shell">
-                    <label class="field field--stacked profile-picker__search-field">
-                        <span>Buscar perfil</span>
-                        <input
-                            id="profile-picker-search"
-                            type="search"
-                            placeholder="Busca por nombre o prompt..."
-                            autocomplete="off"
-                            aria-expanded="false"
-                            aria-controls="profile-picker-panel"
-                        >
-                    </label>
-                    <div id="profile-picker-panel" class="profile-picker__panel" hidden>
-                        <div id="profile-picker-results" class="selection-field__results">
-                            ${optionsMarkup}
-                        </div>
-                        <div id="profile-picker-no-results" class="profile-picker__empty" hidden>
-                            No hay perfiles que coincidan con la búsqueda actual.
-                        </div>
-                    </div>
+    applyProfileSwitchQueryState(query);
+}
+
+
+function applyProfileSwitchQueryState(query) {
+    const normalized = String(query || "").trim().toLowerCase();
+    let visibleCount = 0;
+    let totalOptions = 0;
+
+    elements.profileSwitchResults?.querySelectorAll("[data-profile-switch-option]").forEach((node) => {
+        totalOptions += 1;
+        const matches = normalized ? node.textContent.toLowerCase().includes(normalized) : true;
+        node.hidden = !matches;
+        if (matches) {
+            visibleCount += 1;
+        }
+    });
+
+    if (elements.profileSwitchResults) {
+        elements.profileSwitchResults.hidden = totalOptions > 0 && visibleCount === 0;
+    }
+    if (elements.profileSwitchNoResults) {
+        elements.profileSwitchNoResults.hidden = visibleCount !== 0 || totalOptions === 0;
+    }
+}
+
+
+function renderChatToolsList() {
+    if (!elements.chatToolsList) {
+        return;
+    }
+
+    elements.chatToolsList.innerHTML = CHAT_TOOL_PREVIEW_ITEMS.map((tool) => `
+        <article class="chat-tool-card" aria-disabled="true">
+            <div class="chat-tool-card__copy">
+                <strong>${escapeHtml(tool.name)}</strong>
+                <p>${escapeHtml(tool.summary)}</p>
+            </div>
+            <span class="chat-tool-card__status">Próximamente</span>
+        </article>
+    `).join("");
+}
+
+
+function renderChatProfileCard() {
+    if (!elements.chatProfileCard) {
+        return;
+    }
+
+    const selectedProfileId = getSelectedProfileId();
+    const profile = (state.profiles || []).find((item) => item.id === Number(selectedProfileId)) || null;
+
+    if (!profile) {
+        elements.chatProfileCard.innerHTML = `
+            <div class="chat-profile-card__empty">
+                No hay perfiles disponibles todavía. Crea uno para definir el comportamiento del chat.
+            </div>
+        `;
+        return;
+    }
+
+    const tags = Array.isArray(profile.tags) ? profile.tags.slice(0, PROFILE_SETTINGS_PREVIEW_TAGS) : [];
+    const tagsMarkup = tags.length
+        ? tags.map((tag) => `<span class="chat-profile-card__tag">${escapeHtml(tag)}</span>`).join("")
+        : `<span class="chat-profile-card__tag chat-profile-card__tag--muted">Sin etiquetas</span>`;
+    const defaultBadge = profile.is_default
+        ? `<span class="chat-profile-card__badge">Default</span>`
+        : "";
+
+    elements.chatProfileCard.innerHTML = `
+        <article class="chat-profile-card__surface">
+            <div class="chat-profile-card__top">
+                <div class="chat-profile-card__heading">
+                    <strong>${escapeHtml(profile.name)}</strong>
+                    <span>${escapeHtml(profile.personality || "Sin personalidad definida")}</span>
                 </div>
+                ${defaultBadge}
             </div>
-            <div class="profile-picker__current" aria-live="polite">
-                <span class="profile-picker__trigger-copy">
-                    <strong>${escapeHtml(selectedProfile?.name || "Sin perfil activo")}</strong>
-                    <span>${escapeHtml(selectedProfile?.system_prompt || "Selecciona un perfil para este chat.")}</span>
-                </span>
+            <div class="chat-profile-card__meta">
+                <span class="chat-profile-card__metric">Temp ${escapeHtml(String(profile.temperature ?? 0.7))}</span>
+                <span class="chat-profile-card__metric">Top P ${escapeHtml(String(profile.top_p ?? 1))}</span>
+                <span class="chat-profile-card__metric">Max ${escapeHtml(String(profile.max_tokens ?? 2048))}</span>
             </div>
-        </div>
+            <div class="chat-profile-card__tags">${tagsMarkup}</div>
+            <div class="chat-profile-card__actions">
+                <button
+                    class="ghost-button ghost-button--compact"
+                    type="button"
+                    data-edit-chat-profile-id="${profile.id}"
+                >
+                    Editar
+                </button>
+            </div>
+        </article>
     `;
 }

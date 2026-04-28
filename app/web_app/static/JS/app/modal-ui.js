@@ -34,13 +34,13 @@ function closeModal(modal) {
 }
 
 
-export function openChatSettingsModal() {
-    openModal(elements.chatSettingsModal);
+export function openProfileSwitchModal() {
+    openModal(elements.profileSwitchModal);
 }
 
 
-export function closeChatSettingsModal() {
-    closeModal(elements.chatSettingsModal);
+export function closeProfileSwitchModal() {
+    closeModal(elements.profileSwitchModal);
 }
 
 
