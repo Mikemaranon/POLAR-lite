@@ -7,24 +7,19 @@ import { state } from "../state.js";
 
 const CHAT_TOOL_PREVIEW_ITEMS = [
     {
+        id: "web-search",
         name: "Buscar en internet",
         summary: "Consulta fuentes web antes de responder.",
     },
     {
+        id: "calculator",
         name: "Calculadora",
         summary: "Resuelve operaciones y conversiones rápidas.",
     },
     {
+        id: "current-date",
         name: "Fecha actual",
         summary: "Devuelve fecha y zona horaria locales.",
-    },
-    {
-        name: "Resumen de archivos",
-        summary: "Preparada para revisar contexto del proyecto.",
-    },
-    {
-        name: "Notas del proyecto",
-        summary: "Pensada para recuperar apuntes guardados.",
     },
 ];
 
@@ -163,15 +158,31 @@ function renderChatToolsList() {
         return;
     }
 
-    elements.chatToolsList.innerHTML = CHAT_TOOL_PREVIEW_ITEMS.map((tool) => `
-        <article class="chat-tool-card" aria-disabled="true">
+    elements.chatToolsList.innerHTML = CHAT_TOOL_PREVIEW_ITEMS.map((tool) => {
+        const isEnabled = Boolean(state.chatToolStates?.[tool.id]);
+        const toggleActionLabel = `${isEnabled ? "Desactivar" : "Activar"} ${tool.name}`;
+
+        return `
+        <article class="chat-tool-card${isEnabled ? " is-enabled" : ""}">
             <div class="chat-tool-card__copy">
                 <strong>${escapeHtml(tool.name)}</strong>
                 <p>${escapeHtml(tool.summary)}</p>
             </div>
-            <span class="chat-tool-card__status">Próximamente</span>
+            <button
+                class="chat-tool-card__toggle"
+                type="button"
+                data-chat-tool-toggle="${tool.id}"
+                aria-pressed="${isEnabled ? "true" : "false"}"
+                aria-label="${escapeHtml(toggleActionLabel)}"
+                title="${escapeHtml(toggleActionLabel)}"
+            >
+                <span class="chat-tool-card__switch" aria-hidden="true">
+                    <span class="chat-tool-card__switch-thumb"></span>
+                </span>
+            </button>
         </article>
-    `).join("");
+    `;
+    }).join("");
 }
 
 
@@ -184,6 +195,9 @@ function renderChatProfileCard() {
     const profile = (state.profiles || []).find((item) => item.id === Number(selectedProfileId)) || null;
 
     if (!profile) {
+        if (elements.editProfileButton) {
+            elements.editProfileButton.disabled = true;
+        }
         elements.chatProfileCard.innerHTML = `
             <div class="chat-profile-card__empty">
                 No hay perfiles disponibles todavía. Crea uno para definir el comportamiento del chat.
@@ -215,15 +229,10 @@ function renderChatProfileCard() {
                 <span class="chat-profile-card__metric">Max ${escapeHtml(String(profile.max_tokens ?? 2048))}</span>
             </div>
             <div class="chat-profile-card__tags">${tagsMarkup}</div>
-            <div class="chat-profile-card__actions">
-                <button
-                    class="ghost-button ghost-button--compact"
-                    type="button"
-                    data-edit-chat-profile-id="${profile.id}"
-                >
-                    Editar
-                </button>
-            </div>
         </article>
     `;
+
+    if (elements.editProfileButton) {
+        elements.editProfileButton.disabled = false;
+    }
 }

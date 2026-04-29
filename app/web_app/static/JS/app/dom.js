@@ -23,6 +23,7 @@ export const elements = {
     workspaceSettingsButton: document.getElementById("workspace-settings-button"),
     chatSettingsButton: document.getElementById("chat-settings-button"),
     changeProfileButton: document.getElementById("change-profile-button"),
+    editProfileButton: document.getElementById("edit-profile-button"),
     backToProjectButton: document.getElementById("back-to-project-button"),
     closeProfileSwitchButton: document.getElementById("close-profile-switch-button"),
     closeProfileButton: document.getElementById("close-profile-button"),

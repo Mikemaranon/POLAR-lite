@@ -74,6 +74,15 @@ export function setStagedDocuments(documents = []) {
 }
 
 
+export function setChatToolEnabled(toolId, isEnabled) {
+    if (!toolId) {
+        return;
+    }
+
+    state.chatToolStates[toolId] = Boolean(isEnabled);
+}
+
+
 export function setSelectedProvider(provider) {
     state.selectedProvider = provider || state.selectedProvider;
 }

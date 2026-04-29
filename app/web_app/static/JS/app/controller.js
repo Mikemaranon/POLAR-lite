@@ -31,11 +31,13 @@ import {
     toggleSidebar,
 } from "./controllers/layout-controller.js";
 import {
+    handleActiveChatProfileEdit,
     handleDocumentClick,
     handleDocumentInput,
     handleProfileSubmit,
     openCreateProfileModal,
     openProfileSwitcher,
+    syncChatProfileActions,
 } from "./controllers/profiles-controller.js";
 import {
     handleBackToProject,
@@ -143,6 +145,7 @@ export function bindUI() {
     elements.chatSidePanel?.addEventListener("click", handleChatSidebarClick);
     elements.backToProjectButton?.addEventListener("click", handleBackToProject);
     elements.changeProfileButton?.addEventListener("click", openProfileSwitcher);
+    elements.editProfileButton?.addEventListener("click", handleActiveChatProfileEdit);
     elements.closeProfileSwitchButton?.addEventListener("click", closeProfileSwitchModal);
     elements.closeProfileButton?.addEventListener("click", closeProfileModal);
     elements.closeProjectCustomizeButton?.addEventListener("click", closeProjectCustomizeModal);
@@ -180,6 +183,7 @@ export function bindUI() {
     document.addEventListener("input", handleDocumentInput);
     bindSidebarViewportChangeListener();
     syncChatSidebarSections();
+    syncChatProfileActions();
 }
 
 

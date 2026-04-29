@@ -565,6 +565,9 @@
 
 .project-chat-card__title {
     display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: 500;
     color: var(--text);
 }

@@ -198,7 +198,6 @@
 .conversation-row__main {
     width: 100%;
     min-width: 0;
-    padding-right: 46px;
 }
 
 .list-item {
@@ -215,6 +214,10 @@
 
 .list-item:hover {
     background: rgba(255, 255, 255, 0.45);
+}
+
+.conversation-row__main.list-item {
+    padding-right: 54px;
 }
 
 .conversation-row.is-active .list-item,
@@ -264,6 +267,10 @@
 }
 
 .list-item__title {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: 500;
     font-size: 0.95rem;
 }

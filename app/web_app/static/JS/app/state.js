@@ -20,6 +20,7 @@ export const state = {
     activeMessages: [],
     messagesAutoScrollEnabled: true,
     stagedDocuments: [],
+    chatToolStates: {},
     loading: false,
     activeGenerationRequestId: null,
     generationStopRequested: false,

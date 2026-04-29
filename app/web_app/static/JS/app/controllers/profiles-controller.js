@@ -9,6 +9,7 @@ import {
     applyConversationsPayload,
     applyProfilesPayload,
     patchActiveConversation,
+    setChatToolEnabled,
     setPendingProfileId,
     setProfileModalState,
     setSelectedSettingsProfileId,
@@ -215,15 +216,52 @@ export function handleDocumentClick(event, { handleProjectDocumentDelete }) {
         return;
     }
 
-    const editChatProfileButton = event.target.closest("[data-edit-chat-profile-id]");
-    if (editChatProfileButton) {
-        handleSettingsProfileEdit(Number(editChatProfileButton.dataset.editChatProfileId), "chat-settings");
-        return;
-    }
-
     const deleteProfileButton = event.target.closest("[data-delete-profile-id]");
     if (deleteProfileButton) {
         handleSettingsProfileDelete(Number(deleteProfileButton.dataset.deleteProfileId));
+        return;
+    }
+
+    const toggleToolButton = event.target.closest("[data-chat-tool-toggle]");
+    if (toggleToolButton) {
+        const toolId = String(toggleToolButton.dataset.chatToolToggle || "");
+        const isEnabled = toggleToolButton.getAttribute("aria-pressed") !== "true";
+        setChatToolEnabled(toolId, isEnabled);
+        renderChatPanel();
+        return;
+    }
+}
+
+
+export function handleActiveChatProfileEdit() {
+    const activeProfileId = state.activeConversation?.profile_id || state.pendingProfileId || getDefaultProfileId();
+    if (!activeProfileId) {
+        showStatus("No hay un perfil seleccionado para editar.", true);
+        return;
+    }
+
+    handleSettingsProfileEdit(Number(activeProfileId), "chat-settings");
+}
+
+
+export function syncChatProfileActions() {
+    if (!elements.editProfileButton) {
+        return;
+    }
+
+    const activeProfileId = state.activeConversation?.profile_id || state.pendingProfileId || getDefaultProfileId();
+    elements.editProfileButton.disabled = !activeProfileId;
+}
+
+
+export function openProfileSwitcher() {
+    renderChatPanel();
+    openProfileSwitchModal();
+    if (elements.profileSwitchSearchInput) {
+        elements.profileSwitchSearchInput.value = "";
+        elements.profileSwitchSearchInput.focus({ preventScroll: true });
+        elements.profileSwitchSearchInput.select();
+        filterProfileSwitchOptions(elements.profileSwitchSearchInput.value);
     }
 }
 
@@ -256,18 +294,6 @@ export function filterProfileSwitchOptions(query) {
     }
     if (elements.profileSwitchNoResults) {
         elements.profileSwitchNoResults.hidden = visibleCount !== 0 || totalOptions === 0;
-    }
-}
-
-
-export function openProfileSwitcher() {
-    renderChatPanel();
-    openProfileSwitchModal();
-    if (elements.profileSwitchSearchInput) {
-        elements.profileSwitchSearchInput.value = "";
-        elements.profileSwitchSearchInput.focus({ preventScroll: true });
-        elements.profileSwitchSearchInput.select();
-        filterProfileSwitchOptions(elements.profileSwitchSearchInput.value);
     }
 }
 

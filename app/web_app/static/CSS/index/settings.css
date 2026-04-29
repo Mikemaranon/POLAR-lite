@@ -320,6 +320,7 @@
 }
 
 .chat-profile-card {
+    margin-top: 15px;
     padding: 16px;
     border: 1px solid rgba(28, 139, 89, 0.18);
     border-radius: var(--radius-md);
@@ -358,6 +359,13 @@
     text-align: left;
 }
 
+.chat-tool-card.is-enabled {
+    border-color: rgba(28, 139, 89, 0.26);
+    background:
+        radial-gradient(circle at top right, rgba(28, 139, 89, 0.1), rgba(28, 139, 89, 0) 42%),
+        rgba(255, 255, 255, 0.88);
+}
+
 .chat-tool-card__copy {
     display: grid;
     gap: 4px;
@@ -375,15 +383,54 @@
     line-height: 1.5;
 }
 
-.chat-tool-card__status {
+.chat-tool-card__toggle {
     flex: none;
     align-self: center;
-    padding: 5px 10px;
-    border-radius: var(--radius-pill);
-    background: rgba(24, 27, 25, 0.06);
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    border: none;
+    background: transparent;
     color: var(--text-soft);
-    font-size: 0.72rem;
-    font-weight: 600;
+    cursor: pointer;
+}
+
+.chat-tool-card__switch {
+    position: relative;
+    width: 46px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(24, 27, 25, 0.12);
+    transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.chat-tool-card__switch-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 4px 10px rgba(30, 31, 25, 0.12);
+    transform: translateX(0);
+    transition: transform 0.18s ease;
+}
+
+.chat-tool-card__toggle[aria-pressed="true"] {
+    color: var(--accent-strong);
+}
+
+.chat-tool-card__toggle[aria-pressed="true"] .chat-tool-card__switch {
+    background: rgba(28, 139, 89, 0.82);
+}
+
+.chat-tool-card__toggle[aria-pressed="true"] .chat-tool-card__switch-thumb {
+    transform: translateX(18px);
+}
+
+.chat-tool-card__toggle:focus-visible .chat-tool-card__switch {
+    box-shadow: 0 0 0 4px rgba(199, 103, 46, 0.14);
 }
 
 .chat-profile-card__surface {
@@ -426,11 +473,6 @@
     gap: 8px;
 }
 
-.chat-profile-card__actions {
-    display: flex;
-    justify-content: flex-start;
-}
-
 .chat-profile-card__metric,
 .chat-profile-card__tag {
     display: inline-flex;
@@ -464,13 +506,14 @@
     max-height: none;
     overflow-y: auto;
     padding-right: 4px;
+    padding-top: 5px;
+    align-content: start;
 }
 
 .profile-switch__option {
     display: grid;
     gap: 4px;
     align-content: start;
-    min-height: 96px;
 }
 
 .profile-switch__option:hover {
