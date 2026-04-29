@@ -29,6 +29,11 @@ export async function loadProjectsData() {
 }
 
 
+export async function loadProvidersData() {
+    return apiRequestJson("GET", "/api/providers");
+}
+
+
 export async function loadProfilesData() {
     return apiRequestJson("GET", "/api/profiles");
 }
@@ -58,6 +63,21 @@ export async function loadConversationDetailData(conversationId) {
 
 export async function loadModelsData() {
     return apiRequestJson("GET", "/api/models");
+}
+
+
+export async function createModel(data) {
+    return apiRequestJson("POST", "/api/models", data);
+}
+
+
+export async function updateModel(data) {
+    return apiRequestJson("PATCH", "/api/models", data);
+}
+
+
+export async function deleteModel(modelId) {
+    return apiRequestJson("DELETE", `/api/models?id=${encodeURIComponent(modelId)}`);
 }
 
 
@@ -100,6 +120,26 @@ export async function deleteProjectDocument(documentId) {
 
 export async function createProfile(data) {
     return apiRequestJson("POST", "/api/profiles", data);
+}
+
+
+export async function createProvider(data) {
+    return apiRequestJson("POST", "/api/providers", data);
+}
+
+
+export async function updateProvider(data) {
+    return apiRequestJson("PATCH", "/api/providers", data);
+}
+
+
+export async function deleteProvider(providerId) {
+    return apiRequestJson("DELETE", `/api/providers?id=${encodeURIComponent(providerId)}`);
+}
+
+
+export async function restoreProvider(providerId) {
+    return apiRequestJson("POST", "/api/providers/restore", { id: providerId });
 }
 
 export async function updateProfile(data) {

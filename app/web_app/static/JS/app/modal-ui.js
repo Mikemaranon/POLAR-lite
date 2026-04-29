@@ -44,6 +44,16 @@ export function closeProfileSwitchModal() {
 }
 
 
+export function openModelSwitchModal() {
+    openModal(elements.modelSwitchModal);
+}
+
+
+export function closeModelSwitchModal() {
+    closeModal(elements.modelSwitchModal);
+}
+
+
 export function openProfileModal() {
     openModal(elements.profileModal);
 }
@@ -51,6 +61,26 @@ export function openProfileModal() {
 
 export function closeProfileModal() {
     closeModal(elements.profileModal);
+}
+
+
+export function openModelModal() {
+    openModal(elements.modelModal);
+}
+
+
+export function closeModelModal() {
+    closeModal(elements.modelModal);
+}
+
+
+export function openProviderModal() {
+    openModal(elements.providerModal);
+}
+
+
+export function closeProviderModal() {
+    closeModal(elements.providerModal);
 }
 
 

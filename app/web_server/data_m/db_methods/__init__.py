@@ -8,6 +8,8 @@ from .t_project_documents import ProjectDocumentsTable
 from .t_profiles import ProfilesTable
 from .t_conversations import ConversationsTable
 from .t_messages import MessagesTable
+from .t_models import ModelsTable
+from .t_providers import ProvidersTable
 from .t_settings import SettingsTable
 from .t_models_cache import ModelsCacheTable
 
@@ -20,6 +22,8 @@ __all__ = [
     "ProfilesTable",
     "ConversationsTable",
     "MessagesTable",
+    "ModelsTable",
+    "ProvidersTable",
     "SettingsTable",
     "ModelsCacheTable",
 ]

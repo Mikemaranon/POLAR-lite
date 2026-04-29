@@ -3,6 +3,7 @@ import {
     loadConversationsData,
     loadModelsData,
     loadProfilesData,
+    loadProvidersData,
     loadProjectDocumentsData,
     loadProjectsData,
     loadSettingsData,
@@ -16,6 +17,11 @@ export async function loadProjects() {
 
 export async function loadProfiles() {
     return loadProfilesData();
+}
+
+
+export async function loadProviders() {
+    return loadProvidersData();
 }
 
 

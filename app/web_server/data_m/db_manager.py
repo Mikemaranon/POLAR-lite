@@ -8,8 +8,10 @@ from .db_methods import (
     ProjectsTable,
     ProjectDocumentsTable,
     ProfilesTable,
+    ProvidersTable,
     ConversationsTable,
     MessagesTable,
+    ModelsTable,
     SettingsTable,
     ModelsCacheTable,
 )
@@ -36,8 +38,10 @@ class DBManager:
         self.projects = ProjectsTable(self.db)
         self.project_documents = ProjectDocumentsTable(self.db)
         self.profiles = ProfilesTable(self.db)
+        self.providers = ProvidersTable(self.db)
         self.conversations = ConversationsTable(self.db)
         self.messages = MessagesTable(self.db)
+        self.models = ModelsTable(self.db)
         self.settings = SettingsTable(self.db)
         self.models_cache = ModelsCacheTable(self.db)
 
@@ -76,7 +80,9 @@ class DBManager:
 
     def _ensure_defaults(self):
         default_profile = self.profiles.get_default()
+        self.providers.ensure_seed_providers()
         if default_profile:
+            self.models.ensure_seed_models()
             return
 
         self.profiles.create(
@@ -87,3 +93,4 @@ class DBManager:
             max_tokens=2048,
             is_default=True,
         )
+        self.models.ensure_seed_models()

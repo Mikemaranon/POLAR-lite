@@ -65,7 +65,7 @@ class ConversationsAPI(BaseAPI):
         data = self.get_request_json(request)
 
         default_profile = self.get_default_profile()
-        default_provider = self.config_manager.providers.default_provider
+        default_model = self.db.models.get_default()
 
         try:
             project_id = self.parse_int(data.get("project_id"), "project_id")
@@ -73,17 +73,23 @@ class ConversationsAPI(BaseAPI):
                 data.get("profile_id", default_profile["id"] if default_profile else None),
                 "profile_id",
             )
+            model_config_id = self.parse_int(
+                data.get("model_config_id", default_model["id"] if default_model else None),
+                "model_config_id",
+            )
         except ValueError as error:
             return self.error(str(error), 400)
 
-        provider = data.get("provider", default_provider)
-        model = data.get("model", "")
+        configured_model = self.db.models.get(model_config_id) if model_config_id else default_model
+        provider = data.get("provider", configured_model["provider"] if configured_model else self.config_manager.providers.default_provider)
+        model = data.get("model", configured_model["name"] if configured_model else "")
         title = data.get("title", "New Chat")
 
         conversation_id = self.db.conversations.create(
             title=title,
             project_id=project_id,
             profile_id=profile_id,
+            model_config_id=model_config_id,
             provider=provider,
             model=model,
         )
@@ -109,16 +115,22 @@ class ConversationsAPI(BaseAPI):
         try:
             project_id = self.parse_int(data.get("project_id", conversation["project_id"]), "project_id")
             profile_id = self.parse_int(data.get("profile_id", conversation["profile_id"]), "profile_id")
+            model_config_id = self.parse_int(
+                data.get("model_config_id", conversation.get("model_config_id")),
+                "model_config_id",
+            )
         except ValueError as error:
             return self.error(str(error), 400)
 
+        configured_model = self.db.models.get(model_config_id) if model_config_id else None
         self.db.conversations.update(
             conversation_id=conversation_id,
             title=data.get("title", conversation["title"]),
             project_id=project_id,
             profile_id=profile_id,
-            provider=data.get("provider", conversation["provider"]),
-            model=data.get("model", conversation["model"]),
+            model_config_id=model_config_id,
+            provider=data.get("provider", configured_model["provider"] if configured_model else conversation["provider"]),
+            model=data.get("model", configured_model["name"] if configured_model else conversation["model"]),
         )
         return self.ok({"conversation": self.db.conversations.get(conversation_id)})
 

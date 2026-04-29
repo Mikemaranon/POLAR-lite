@@ -1,7 +1,15 @@
 import { elements } from "../dom.js";
 import { setChatPanelOpen } from "../state-actions.js";
 import { state } from "../state.js";
-import { closeDocumentsModal, closeProfileModal, closeProfileSwitchModal, closeProjectCustomizeModal } from "../modal-ui.js";
+import {
+    closeDocumentsModal,
+    closeModelModal,
+    closeModelSwitchModal,
+    closeProviderModal,
+    closeProfileModal,
+    closeProfileSwitchModal,
+    closeProjectCustomizeModal,
+} from "../modal-ui.js";
 import { hideStatus } from "../status-ui.js";
 
 const mobileSidebarMediaQuery = window.matchMedia("(max-width: 1120px)");
@@ -188,8 +196,23 @@ export function handleDocumentKeyDown(event) {
         event.stopPropagation();
         return;
     }
+    if (elements.modelSwitchModal && !elements.modelSwitchModal.hidden) {
+        closeModelSwitchModal();
+        event.stopPropagation();
+        return;
+    }
     if (!elements.profileModal.hidden) {
         closeProfileModal();
+        event.stopPropagation();
+        return;
+    }
+    if (elements.modelModal && !elements.modelModal.hidden) {
+        closeModelModal();
+        event.stopPropagation();
+        return;
+    }
+    if (elements.providerModal && !elements.providerModal.hidden) {
+        closeProviderModal();
         event.stopPropagation();
         return;
     }

@@ -1,7 +1,13 @@
 import { syncComposerAvailability } from "./composer-ui.js";
-import { renderChatSurface, renderConversationHeader, renderMessages, renderProviderControls, populateSettingsForm } from "./render/chat-render.js";
+import { renderChatSurface, renderConversationHeader, renderMessages } from "./render/chat-render.js";
 import { renderProjectSpace, renderDocumentsFileList } from "./render/project-render.js";
-import { renderChatPanel, renderSettingsProfilesManager, renderSettingsSpace } from "./render/settings-render.js";
+import {
+    renderChatPanel,
+    renderSettingsProvidersManager,
+    renderSettingsModelsManager,
+    renderSettingsProfilesManager,
+    renderSettingsSpace,
+} from "./render/settings-render.js";
 import { renderConversations, renderProjects } from "./render/sidebar-render.js";
 
 
@@ -10,6 +16,8 @@ export function renderAll({ onProjectSelect, onConversationSelect, onConversatio
     renderConversations(onConversationSelect, onConversationDelete);
     renderProjectSpace(onConversationSelect, onConversationDelete);
     renderSettingsSpace();
+    renderSettingsProvidersManager();
+    renderSettingsModelsManager();
     renderSettingsProfilesManager();
     renderChatPanel();
     renderChatSurface();
@@ -18,7 +26,6 @@ export function renderAll({ onProjectSelect, onConversationSelect, onConversatio
 }
 
 export {
-    populateSettingsForm,
     renderConversationHeader,
     renderConversations,
     renderDocumentsFileList,
@@ -26,7 +33,8 @@ export {
     renderChatPanel,
     renderProjectSpace,
     renderProjects,
-    renderProviderControls,
+    renderSettingsProvidersManager,
+    renderSettingsModelsManager,
     renderSettingsProfilesManager,
     renderSettingsSpace,
 };

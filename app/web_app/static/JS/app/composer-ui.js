@@ -1,5 +1,5 @@
 import { elements } from "./dom.js";
-import { getProviderCatalog, getSelectedModel } from "./provider-helpers.js";
+import { getSelectedModel, getSelectedModelConfig } from "./provider-helpers.js";
 import { state } from "./state.js";
 
 
@@ -12,9 +12,8 @@ export function autoResizeComposer() {
 export function syncComposerAvailability() {
     const isProjectWorkspace = state.workspaceMode === "project";
     const isSettingsWorkspace = state.workspaceMode === "settings";
-    const activeCatalog = getProviderCatalog();
-    const providerReady = activeCatalog ? activeCatalog.available !== false : true;
-    const shouldDisableComposer = isProjectWorkspace || isSettingsWorkspace || !providerReady;
+    const selectedModelConfig = getSelectedModelConfig();
+    const shouldDisableComposer = isProjectWorkspace || isSettingsWorkspace || !selectedModelConfig;
 
     elements.composerShell.hidden = isProjectWorkspace || isSettingsWorkspace;
     elements.sendButton.disabled = shouldDisableComposer || (state.loading && state.generationStopRequested);
@@ -44,13 +43,9 @@ export function syncComposerAvailability() {
     } else if (isSettingsWorkspace) {
         elements.composerInput.placeholder = "Vuelve a un chat para escribir.";
         elements.composerHint.textContent = "Los ajustes generales se gestionan desde esta vista.";
-    } else if (!providerReady) {
-        elements.composerInput.placeholder = "Este proveedor no está listo para responder todavía.";
-        elements.composerHint.textContent = activeCatalog?.error?.message
-            || "Completa la configuración del proveedor antes de iniciar el chat.";
     } else if (!getSelectedModel()) {
-        elements.composerInput.placeholder = "Selecciona un proveedor y un modelo disponible antes de escribir.";
-        elements.composerHint.textContent = "Solo se puede chatear con modelos detectados por el proveedor activo.";
+        elements.composerInput.placeholder = "Selecciona un modelo antes de escribir.";
+        elements.composerHint.textContent = "Cada chat usa su propio modelo sin afectar al resto.";
     } else if (state.loading && state.generationStopRequested) {
         elements.composerInput.placeholder = "Deteniendo la respuesta actual...";
         elements.composerHint.textContent = "Esperando a que el proveedor cierre la generación en curso.";

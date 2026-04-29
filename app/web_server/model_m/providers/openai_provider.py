@@ -25,9 +25,10 @@ class OpenAIProvider(ModelProvider):
                 "OpenAI provider requires OPENAI_API_KEY or a saved API key.",
                 provider=self.provider_name,
             )
+        base_url = self._get_base_url()
 
         response = self.http_client.get_json(
-            f"{self.config.openai_base_url}/models",
+            f"{base_url}/models",
             headers=self._build_headers(api_key),
             provider_name=self.provider_name,
         )
@@ -53,7 +54,7 @@ class OpenAIProvider(ModelProvider):
         return models
 
     def chat(self, messages: list[dict], model: str, settings: dict | None = None) -> dict:
-        api_key = self._get_api_key()
+        api_key = self._get_api_key(settings=settings)
         if not api_key:
             raise ProviderUnavailableError(
                 "OpenAI provider requires OPENAI_API_KEY or a saved API key.",
@@ -61,9 +62,10 @@ class OpenAIProvider(ModelProvider):
             )
 
         payload = self._build_chat_payload(messages, model, settings, stream=False)
+        base_url = self._get_base_url(settings=settings)
 
         response = self.http_client.post_json(
-            f"{self.config.openai_base_url}/chat/completions",
+            f"{base_url}/chat/completions",
             payload,
             headers=self._build_headers(api_key),
             provider_name=self.provider_name,
@@ -87,7 +89,7 @@ class OpenAIProvider(ModelProvider):
         settings: dict | None = None,
         should_stop=None,
     ):
-        api_key = self._get_api_key()
+        api_key = self._get_api_key(settings=settings)
         if not api_key:
             raise ProviderUnavailableError(
                 "OpenAI provider requires OPENAI_API_KEY or a saved API key.",
@@ -95,6 +97,7 @@ class OpenAIProvider(ModelProvider):
             )
 
         payload = self._build_chat_payload(messages, model, settings, stream=True)
+        base_url = self._get_base_url(settings=settings)
         content_parts = []
         usage = {}
         finish_reason = None
@@ -103,7 +106,7 @@ class OpenAIProvider(ModelProvider):
         chunk_count = 0
 
         for chunk in self.http_client.stream_sse_json(
-            f"{self.config.openai_base_url}/chat/completions",
+            f"{base_url}/chat/completions",
             payload,
             headers=self._build_headers(api_key),
             provider_name=self.provider_name,
@@ -171,10 +174,20 @@ class OpenAIProvider(ModelProvider):
 
         return payload
 
-    def _get_api_key(self):
+    def _get_api_key(self, settings=None):
+        model_config_id = (settings or {}).get("_model_config_id")
         return self.settings_resolver.get_cloud_api_key(
             self.provider_name,
             self.config.openai_api_key,
+            model_config_id=model_config_id,
+        )
+
+    def _get_base_url(self, settings=None):
+        model_config_id = (settings or {}).get("_model_config_id")
+        return self.settings_resolver.get_provider_endpoint(
+            self.provider_name,
+            self.config.openai_base_url,
+            model_config_id=model_config_id,
         )
 
     def _build_headers(self, api_key):

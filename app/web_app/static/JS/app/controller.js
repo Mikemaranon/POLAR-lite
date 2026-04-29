@@ -4,13 +4,10 @@ import {
     createConversationFromUI,
     disableMessagesAutoScroll,
     ensureActiveConversation,
-    handleCloudProviderChange,
     handleComposerKeyDown,
     handleComposerSubmit,
     handleConversationDelete,
     handleConversationSelect,
-    handleModelChange,
-    handleProviderChange,
     handleSendButtonClick,
     registerChatCallbacks,
     syncMessagesAutoScrollState,
@@ -31,6 +28,14 @@ import {
     toggleSidebar,
 } from "./controllers/layout-controller.js";
 import {
+    handleActiveChatModelEdit,
+    handleModelSearchInput,
+    handleModelSubmit,
+    openCreateModelModal,
+    openModelSwitcher,
+    syncChatModelActions,
+} from "./controllers/models-controller.js";
+import {
     handleActiveChatProfileEdit,
     handleDocumentClick,
     handleDocumentInput,
@@ -39,6 +44,10 @@ import {
     openProfileSwitcher,
     syncChatProfileActions,
 } from "./controllers/profiles-controller.js";
+import {
+    handleProviderSubmit,
+    openCreateProviderModal,
+} from "./controllers/providers-controller.js";
 import {
     handleBackToProject,
     handleDocumentsDragLeave,
@@ -55,13 +64,15 @@ import {
     handleWorkspaceSettingsOpen,
 } from "./controllers/projects-controller.js";
 import { ensureAuthenticated, handleLogout } from "./controllers/session-controller.js";
-import { handleSettingsSubmit } from "./controllers/settings-controller.js";
 import { elements } from "./dom.js";
 import {
     closeDocumentsModal,
+    closeModelModal,
+    closeModelSwitchModal,
     closeProfileModal,
     closeProfileSwitchModal,
     closeProjectCustomizeModal,
+    closeProviderModal,
     openProjectCustomizeModal,
 } from "./modal-ui.js";
 import {
@@ -69,10 +80,11 @@ import {
     applyModelsPayload,
     applyProfilesPayload,
     applyProjectsPayload,
+    applyProvidersPayload,
     applySettingsPayload,
     enterHomeWorkspace,
 } from "./state-actions.js";
-import { loadConversations, loadModels, loadProfiles, loadProjects, loadSettings } from "./store.js";
+import { loadConversations, loadModels, loadProfiles, loadProjects, loadProviders, loadSettings } from "./store.js";
 
 const onProjectSelect = (projectId) => handleProjectSelect(projectId, { closeSidebarOnMobile });
 const onConversationSelect = (conversationId) => handleConversationSelect(conversationId, { closeSidebarOnMobile });
@@ -95,8 +107,9 @@ registerChatCallbacks({
 
 
 export async function bootApp() {
-    const [settingsData, profilesData, projectsData, modelsData, conversationsData] = await Promise.all([
+    const [settingsData, providersData, profilesData, projectsData, modelsData, conversationsData] = await Promise.all([
         loadSettings(),
+        loadProviders(),
         loadProfiles(),
         loadProjects(),
         loadModels(),
@@ -104,6 +117,7 @@ export async function bootApp() {
     ]);
 
     applySettingsPayload(settingsData);
+    applyProvidersPayload(providersData);
     applyProfilesPayload(profilesData);
     applyProjectsPayload(projectsData);
     applyModelsPayload(modelsData);
@@ -125,9 +139,6 @@ export function bindUI() {
     elements.sendButton?.addEventListener("click", handleSendButtonClick);
     elements.composerInput.addEventListener("keydown", handleComposerKeyDown);
     elements.composerInput.addEventListener("input", autoResizeComposer);
-    elements.providerSelect.addEventListener("change", handleProviderChange);
-    elements.cloudProviderSelect.addEventListener("change", handleCloudProviderChange);
-    elements.modelSelect.addEventListener("change", handleModelChange);
     elements.newChatButton.addEventListener("click", () => createConversationFromUI({
         handleConversationSelect: onConversationSelect,
         closeSidebarOnMobile,
@@ -144,18 +155,27 @@ export function bindUI() {
     elements.chatPanelBackdrop?.addEventListener("click", closeChatPanel);
     elements.chatSidePanel?.addEventListener("click", handleChatSidebarClick);
     elements.backToProjectButton?.addEventListener("click", handleBackToProject);
+    elements.changeModelButton?.addEventListener("click", () => openModelSwitcher("chat-settings"));
+    elements.editModelButton?.addEventListener("click", handleActiveChatModelEdit);
     elements.changeProfileButton?.addEventListener("click", openProfileSwitcher);
     elements.editProfileButton?.addEventListener("click", handleActiveChatProfileEdit);
+    elements.settingsNewProviderButton?.addEventListener("click", openCreateProviderModal);
+    elements.settingsNewModelButton?.addEventListener("click", () => openCreateModelModal("settings"));
+    elements.closeModelSwitchButton?.addEventListener("click", closeModelSwitchModal);
+    elements.closeModelButton?.addEventListener("click", closeModelModal);
+    elements.closeProviderButton?.addEventListener("click", closeProviderModal);
     elements.closeProfileSwitchButton?.addEventListener("click", closeProfileSwitchModal);
     elements.closeProfileButton?.addEventListener("click", closeProfileModal);
     elements.closeProjectCustomizeButton?.addEventListener("click", closeProjectCustomizeModal);
     elements.closeDocumentsButton?.addEventListener("click", closeDocumentsModal);
-    elements.settingsForm.addEventListener("submit", handleSettingsSubmit);
+    elements.modelForm?.addEventListener("submit", handleModelSubmit);
+    elements.providerForm?.addEventListener("submit", handleProviderSubmit);
     elements.profileForm.addEventListener("submit", handleProfileSubmit);
     elements.projectCustomizeForm?.addEventListener("submit", handleProjectCustomizeSubmit);
     elements.deleteProjectButton?.addEventListener("click", handleProjectDelete);
-    elements.newProfileButton?.addEventListener("click", () => openCreateProfileModal("chat-settings"));
     elements.settingsNewProfileButton?.addEventListener("click", () => openCreateProfileModal("settings"));
+    elements.modelCancelButton?.addEventListener("click", closeModelModal);
+    elements.providerCancelButton?.addEventListener("click", closeProviderModal);
     elements.profileCancelButton?.addEventListener("click", closeProfileModal);
     elements.documentsInput?.addEventListener("change", handleDocumentsSelected);
     elements.documentsDropzone?.addEventListener("dragover", handleDocumentsDragOver);
@@ -167,10 +187,14 @@ export function bindUI() {
         disableMessagesAutoScroll,
     }), { passive: true });
     elements.logoutButton.addEventListener("click", handleLogout);
+    elements.modelSwitchModal?.addEventListener("click", handleModelSwitchModalClick);
+    elements.modelModal?.addEventListener("click", handleModelModalClick);
+    elements.providerModal?.addEventListener("click", handleProviderModalClick);
     elements.profileSwitchModal?.addEventListener("click", handleProfileSwitchModalClick);
     elements.profileModal?.addEventListener("click", handleProfileModalClick);
     elements.projectCustomizeModal?.addEventListener("click", handleProjectModalClick);
     elements.documentsModal?.addEventListener("click", handleDocumentsModalClick);
+    elements.modelSwitchSearchInput?.addEventListener("input", handleModelSearchInput);
     document.addEventListener("keydown", handleDocumentKeyDown);
     document.querySelectorAll("[data-prompt]").forEach((element) => {
         element.addEventListener("click", () => {
@@ -183,11 +207,33 @@ export function bindUI() {
     document.addEventListener("input", handleDocumentInput);
     bindSidebarViewportChangeListener();
     syncChatSidebarSections();
+    syncChatModelActions();
     syncChatProfileActions();
 }
 
 
 export { ensureAuthenticated };
+
+
+function handleModelSwitchModalClick(event) {
+    if (event.target.dataset.closeModelSwitchModal === "true") {
+        closeModelSwitchModal();
+    }
+}
+
+
+function handleModelModalClick(event) {
+    if (event.target.dataset.closeModelModal === "true") {
+        closeModelModal();
+    }
+}
+
+
+function handleProviderModalClick(event) {
+    if (event.target.dataset.closeProviderModal === "true") {
+        closeProviderModal();
+    }
+}
 
 
 function handleProfileSwitchModalClick(event) {

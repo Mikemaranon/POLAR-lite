@@ -15,7 +15,35 @@ class ProviderSettingsResolver:
 
         return setting.get("value", default)
 
-    def get_cloud_api_key(self, provider_name, fallback_key=None):
+    def get_model_config(self, model_config_id):
+        if not self.db_manager or not model_config_id:
+            return None
+
+        return self.db_manager.models.get(model_config_id)
+
+    def get_provider_config(self, provider_name=None, model_config_id=None):
+        if not self.db_manager:
+            return None
+
+        if model_config_id:
+            model_config = self.get_model_config(model_config_id)
+            if not model_config:
+                return None
+            return self.db_manager.providers.get(model_config.get("provider_id"))
+
+        if provider_name:
+            return self.db_manager.providers.get_first_by_type(provider_name)
+
+        return None
+
+    def get_cloud_api_key(self, provider_name, fallback_key=None, model_config_id=None):
+        provider_config = self.get_provider_config(
+            provider_name=provider_name,
+            model_config_id=model_config_id,
+        )
+        if provider_config and provider_config.get("api_key"):
+            return provider_config["api_key"]
+
         parsed_keys = self._parse_cloud_api_keys(self.get_setting("openai_api_key"))
 
         if isinstance(parsed_keys, dict):
@@ -28,6 +56,16 @@ class ProviderSettingsResolver:
             return parsed_keys
 
         return fallback_key
+
+    def get_provider_endpoint(self, provider_name, fallback_endpoint=None, model_config_id=None):
+        provider_config = self.get_provider_config(
+            provider_name=provider_name,
+            model_config_id=model_config_id,
+        )
+        if provider_config and provider_config.get("endpoint"):
+            return str(provider_config["endpoint"]).rstrip("/")
+
+        return fallback_endpoint
 
     def _parse_cloud_api_keys(self, raw_value):
         if raw_value is None:

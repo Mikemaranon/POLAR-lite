@@ -1,8 +1,16 @@
 import { elements } from "../dom.js";
 import { escapeHtml } from "../html.js";
 import { PROFILE_SETTINGS_PREVIEW_TAGS } from "../profile-helpers.js";
-import { getDefaultProfileId, getSelectedProfileId } from "../selectors.js";
-import { setSelectedSettingsProfileId } from "../state-actions.js";
+import { getProviderTypeDisplayName } from "../provider-helpers.js";
+import {
+    getDefaultProfileId,
+    getSelectedModelConfigId,
+    getSelectedProfileId,
+} from "../selectors.js";
+import {
+    setSelectedSettingsProviderId,
+    setSelectedSettingsProfileId,
+} from "../state-actions.js";
 import { state } from "../state.js";
 
 const CHAT_TOOL_PREVIEW_ITEMS = [
@@ -26,6 +34,134 @@ const CHAT_TOOL_PREVIEW_ITEMS = [
 
 export function renderSettingsSpace() {
     elements.settingsSpace.hidden = state.workspaceMode !== "settings";
+}
+
+
+export function renderSettingsProvidersManager() {
+    if (!elements.settingsProvidersList) {
+        return;
+    }
+
+    const providers = state.providers || [];
+    const fallbackProviderId = providers.some(
+        (provider) => provider.id === Number(state.selectedSettingsProviderId)
+    )
+        ? Number(state.selectedSettingsProviderId)
+        : (providers[0]?.id || null);
+    setSelectedSettingsProviderId(fallbackProviderId || null);
+
+    elements.settingsProvidersList.innerHTML = providers.length
+        ? providers.map((provider) => {
+            const typeBadge = `<span class="profile-summary-card__tag">${escapeHtml(getProviderTypeDisplayName(provider.provider_type))}</span>`;
+            const builtinBadge = provider.is_builtin
+                ? `<span class="profile-summary-card__badge">Integrado</span>`
+                : "";
+            const endpoint = provider.endpoint || "Sin endpoint configurado";
+            const actions = provider.is_builtin
+                ? `
+                    <button
+                        class="ghost-button ghost-button--compact"
+                        type="button"
+                        data-edit-provider-id="${provider.id}"
+                    >
+                        Editar
+                    </button>
+                    <button
+                        class="ghost-button ghost-button--compact"
+                        type="button"
+                        data-restore-provider-id="${provider.id}"
+                    >
+                        Restore
+                    </button>
+                `
+                : `
+                    <button
+                        class="ghost-button ghost-button--compact"
+                        type="button"
+                        data-edit-provider-id="${provider.id}"
+                    >
+                        Editar
+                    </button>
+                    <button
+                        class="action-button action-button--danger action-button--compact"
+                        type="button"
+                        data-delete-provider-id="${provider.id}"
+                    >
+                        Borrar
+                    </button>
+                `;
+
+            return `
+                <article class="profile-summary-card">
+                    <div class="profile-summary-card__top">
+                        <div class="profile-summary-card__heading">
+                            <strong class="profile-summary-card__name">${escapeHtml(provider.name)}</strong>
+                            <p class="profile-summary-card__personality">${escapeHtml(endpoint)}</p>
+                        </div>
+                        <div class="profile-summary-card__status">
+                            ${builtinBadge}
+                        </div>
+                    </div>
+                    <div class="profile-summary-card__footer">
+                        <div class="profile-summary-card__tags">${typeBadge}</div>
+                        <div class="profile-summary-card__actions">
+                            ${actions}
+                        </div>
+                    </div>
+                </article>
+            `;
+        }).join("")
+        : `<div class="profiles-manager__empty">Todavía no hay proveedores guardados.</div>`;
+}
+
+
+export function renderSettingsModelsManager() {
+    if (!elements.settingsModelsList) {
+        return;
+    }
+
+    const models = state.models || [];
+    elements.settingsModelsList.innerHTML = models.length
+        ? models.map((model) => {
+            const defaultBadge = model.is_default
+                ? `<span class="profile-summary-card__badge">Default</span>`
+                : "";
+            return `
+                <article class="profile-summary-card">
+                    <div class="profile-summary-card__top">
+                        <div class="profile-summary-card__heading">
+                            <strong class="profile-summary-card__name">${escapeHtml(model.name)}</strong>
+                            <p class="profile-summary-card__personality">${escapeHtml(model.provider_name || getProviderTypeDisplayName(model.provider))}</p>
+                        </div>
+                        <div class="profile-summary-card__status">
+                            ${defaultBadge}
+                        </div>
+                    </div>
+                    <div class="profile-summary-card__footer">
+                        <div class="profile-summary-card__tags">
+                            <span class="profile-summary-card__tag">${escapeHtml(getProviderTypeDisplayName(model.provider_type || model.provider))}</span>
+                        </div>
+                        <div class="profile-summary-card__actions">
+                            <button
+                                class="ghost-button ghost-button--compact"
+                                type="button"
+                                data-edit-model-id="${model.id}"
+                            >
+                                Editar
+                            </button>
+                            <button
+                                class="action-button action-button--danger action-button--compact"
+                                type="button"
+                                data-delete-model-id="${model.id}"
+                            >
+                                Borrar
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            `;
+        }).join("")
+        : `<div class="profiles-manager__empty">Todavía no hay modelos guardados.</div>`;
 }
 
 
@@ -95,8 +231,45 @@ export function renderSettingsProfilesManager() {
 
 export function renderChatPanel() {
     renderChatToolsList();
+    renderChatModelCard();
+    renderModelSwitchModal();
     renderChatProfileCard();
     renderProfileSwitchModal();
+}
+
+
+export function renderModelSwitchModal() {
+    if (!elements.modelSwitchResults) {
+        return;
+    }
+
+    const models = state.models || [];
+    const selectedModelId = getSelectedModelConfigId();
+    const query = elements.modelSwitchSearchInput?.value || "";
+
+    elements.modelSwitchResults.innerHTML = models.length
+        ? models.map((model) => {
+            const isSelected = model.id === Number(selectedModelId);
+            const suffix = model.is_default ? " · default" : "";
+            return `
+                <button
+                    class="profile-switch__option${isSelected ? " is-selected" : ""}"
+                    type="button"
+                    data-model-switch-option="${model.id}"
+                >
+                    <span class="profile-switch__option-name">${escapeHtml(model.name)}</span>
+                    <span class="profile-switch__option-meta">${escapeHtml((model.provider_name || getProviderTypeDisplayName(model.provider)) + suffix)}</span>
+                </button>
+            `;
+        }).join("")
+        : `<div class="profile-switch__empty">Todavía no hay modelos. Crea el primero desde ajustes generales.</div>`;
+
+    applySwitchQueryState({
+        resultsElement: elements.modelSwitchResults,
+        emptyElement: elements.modelSwitchNoResults,
+        optionSelector: "[data-model-switch-option]",
+        query,
+    });
 }
 
 
@@ -124,32 +297,14 @@ export function renderProfileSwitchModal() {
                 </button>
             `;
         }).join("")
-        : `<div class="profile-switch__empty">Todavía no hay perfiles. Crea el primero desde el panel del chat o desde ajustes.</div>`;
+        : `<div class="profile-switch__empty">Todavía no hay perfiles. Crea el primero desde ajustes generales.</div>`;
 
-    applyProfileSwitchQueryState(query);
-}
-
-
-function applyProfileSwitchQueryState(query) {
-    const normalized = String(query || "").trim().toLowerCase();
-    let visibleCount = 0;
-    let totalOptions = 0;
-
-    elements.profileSwitchResults?.querySelectorAll("[data-profile-switch-option]").forEach((node) => {
-        totalOptions += 1;
-        const matches = normalized ? node.textContent.toLowerCase().includes(normalized) : true;
-        node.hidden = !matches;
-        if (matches) {
-            visibleCount += 1;
-        }
+    applySwitchQueryState({
+        resultsElement: elements.profileSwitchResults,
+        emptyElement: elements.profileSwitchNoResults,
+        optionSelector: "[data-profile-switch-option]",
+        query,
     });
-
-    if (elements.profileSwitchResults) {
-        elements.profileSwitchResults.hidden = totalOptions > 0 && visibleCount === 0;
-    }
-    if (elements.profileSwitchNoResults) {
-        elements.profileSwitchNoResults.hidden = visibleCount !== 0 || totalOptions === 0;
-    }
 }
 
 
@@ -183,6 +338,39 @@ function renderChatToolsList() {
         </article>
     `;
     }).join("");
+}
+
+
+function renderChatModelCard() {
+    if (!elements.chatModelCard) {
+        return;
+    }
+
+    const model = state.models.find((item) => item.id === Number(getSelectedModelConfigId())) || null;
+
+    if (!model) {
+        if (elements.editModelButton) {
+            elements.editModelButton.disabled = true;
+        }
+        if (elements.changeModelButton) {
+            elements.changeModelButton.disabled = true;
+        }
+        elements.chatModelCard.innerHTML = `
+            <div class="chat-profile-card__empty">
+                No hay modelos configurados todavía. Crea uno desde ajustes generales para poder chatear.
+            </div>
+        `;
+        return;
+    }
+
+    elements.chatModelCard.innerHTML = createModelCardMarkup(model, { includeDefaultBadge: true });
+
+    if (elements.editModelButton) {
+        elements.editModelButton.disabled = false;
+    }
+    if (elements.changeModelButton) {
+        elements.changeModelButton.disabled = state.models.length <= 1;
+    }
 }
 
 
@@ -234,5 +422,54 @@ function renderChatProfileCard() {
 
     if (elements.editProfileButton) {
         elements.editProfileButton.disabled = false;
+    }
+}
+
+
+function createModelCardMarkup(model, { includeDefaultBadge = false } = {}) {
+    const defaultBadge = includeDefaultBadge && model.is_default
+        ? `<span class="chat-profile-card__badge">Default</span>`
+        : "";
+
+    return `
+        <article class="chat-profile-card__surface">
+            <div class="chat-profile-card__top">
+                <div class="chat-profile-card__heading">
+                    <strong>${escapeHtml(model.name)}</strong>
+                </div>
+                ${defaultBadge}
+            </div>
+            <div class="chat-profile-card__tags">
+                <span class="chat-profile-card__tag">${escapeHtml(model.provider_name || getProviderTypeDisplayName(model.provider))}</span>
+            </div>
+        </article>
+    `;
+}
+
+
+function applySwitchQueryState({
+    resultsElement,
+    emptyElement,
+    optionSelector,
+    query,
+}) {
+    const normalized = String(query || "").trim().toLowerCase();
+    let visibleCount = 0;
+    let totalOptions = 0;
+
+    resultsElement?.querySelectorAll(optionSelector).forEach((node) => {
+        totalOptions += 1;
+        const matches = normalized ? node.textContent.toLowerCase().includes(normalized) : true;
+        node.hidden = !matches;
+        if (matches) {
+            visibleCount += 1;
+        }
+    });
+
+    if (resultsElement) {
+        resultsElement.hidden = totalOptions > 0 && visibleCount === 0;
+    }
+    if (emptyElement) {
+        emptyElement.hidden = visibleCount !== 0 || totalOptions === 0;
     }
 }

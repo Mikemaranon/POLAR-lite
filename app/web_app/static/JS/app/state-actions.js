@@ -1,4 +1,3 @@
-import { getRootProviderForActualProvider, isCloudProvider } from "./provider-helpers.js";
 import { state } from "./state.js";
 
 
@@ -52,8 +51,29 @@ export function setPendingProfileId(profileId) {
 }
 
 
+export function setPendingModelConfigId(modelConfigId) {
+    state.pendingModelConfigId = modelConfigId || null;
+}
+
+
+export function setSelectedSettingsProviderId(providerId) {
+    state.selectedSettingsProviderId = providerId || null;
+}
+
+
 export function setSelectedSettingsProfileId(profileId) {
     state.selectedSettingsProfileId = profileId || null;
+}
+
+
+export function setSelectedSettingsModelId(modelConfigId) {
+    state.selectedSettingsModelId = modelConfigId || null;
+}
+
+
+export function setProviderModalState({ mode, providerId = null }) {
+    state.providerModalMode = mode;
+    state.providerModalProviderId = providerId;
 }
 
 
@@ -61,6 +81,13 @@ export function setProfileModalState({ mode, profileId = null, context = "settin
     state.profileModalMode = mode;
     state.profileModalProfileId = profileId;
     state.profileModalContext = context;
+}
+
+
+export function setModelModalState({ mode, modelId = null, context = "settings" }) {
+    state.modelModalMode = mode;
+    state.modelModalModelId = modelId;
+    state.modelModalContext = context;
 }
 
 
@@ -80,34 +107,6 @@ export function setChatToolEnabled(toolId, isEnabled) {
     }
 
     state.chatToolStates[toolId] = Boolean(isEnabled);
-}
-
-
-export function setSelectedProvider(provider) {
-    state.selectedProvider = provider || state.selectedProvider;
-}
-
-
-export function setSelectedCloudProvider(provider) {
-    state.selectedCloudProvider = provider || state.selectedCloudProvider;
-}
-
-
-export function rememberSelectedModel(provider, model) {
-    if (!provider || !model) {
-        return;
-    }
-
-    state.modelSelections[provider] = model;
-}
-
-
-export function removeSelectedModel(provider) {
-    if (!provider) {
-        return;
-    }
-
-    delete state.modelSelections[provider];
 }
 
 
@@ -136,6 +135,11 @@ export function applyProjectsPayload(data) {
 }
 
 
+export function applyProvidersPayload(data) {
+    state.providers = data.providers || [];
+}
+
+
 export function applyProfilesPayload(data) {
     state.profiles = data.profiles || [];
 }
@@ -147,7 +151,7 @@ export function applyProjectDocumentsPayload(data) {
 
 
 export function applyConversationsPayload(data) {
-    state.conversations = data.conversations || [];
+    state.conversations = (data.conversations || []).map(enrichConversationModelConfig);
 
     if (!state.activeConversationId) {
         return;
@@ -170,27 +174,18 @@ export function applyConversationsPayload(data) {
 
 
 export function applyConversationDetailPayload(data) {
-    const conversation = data.conversation;
+    const conversation = enrichConversationModelConfig(data.conversation);
     state.activeConversation = conversation;
     state.activeConversationId = conversation.id;
     state.activeMessages = data.messages || [];
     state.activeProjectId = conversation.project_id || null;
-    state.selectedProvider = getRootProviderForActualProvider(conversation.provider) || state.selectedProvider;
-
-    if (isCloudProvider(conversation.provider)) {
-        state.selectedCloudProvider = conversation.provider;
-    }
-
-    if (conversation.provider && conversation.model) {
-        rememberSelectedModel(conversation.provider, conversation.model);
-    }
-
+    state.pendingModelConfigId = null;
     state.workspaceMode = "conversation";
 }
 
 
 export function applyModelsPayload(data) {
-    state.providerCatalogs = data.providers || [];
+    state.models = data.models || [];
 }
 
 
@@ -228,4 +223,25 @@ export function enterConversationWorkspace() {
 
 export function enterSettingsWorkspace() {
     state.workspaceMode = "settings";
+}
+
+
+function enrichConversationModelConfig(conversation) {
+    if (!conversation) {
+        return conversation;
+    }
+
+    if (conversation.model_config_id) {
+        return conversation;
+    }
+
+    const matchedModel = state.models.find((model) => (
+        model.provider === conversation.provider
+        && model.name === conversation.model
+    ));
+
+    return {
+        ...conversation,
+        model_config_id: matchedModel?.id || null,
+    };
 }

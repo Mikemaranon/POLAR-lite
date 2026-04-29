@@ -15,6 +15,7 @@ class ChatResourceNotFoundError(LookupError):
 class PreparedChatRequest:
     conversation_id: int | None
     conversation: dict | None
+    model_config_id: int | None
     provider: str
     model: str
     input_messages: list[dict]
@@ -84,18 +85,36 @@ class ChatService:
             conversation,
             default_profile,
         )
+        model_config_id = self._parse_optional_int(
+            data.get("model_config_id", conversation["model_config_id"] if conversation else None),
+            "model_config_id",
+            parse_int,
+        )
+        model_config = self.db.models.get(model_config_id) if model_config_id else None
 
         provider = data.get("provider") or (conversation["provider"] if conversation else None)
         model = data.get("model") or (conversation["model"] if conversation else None)
+
+        if model_config:
+            provider = provider or model_config["provider"]
+            model = model or model_config["name"]
 
         if not provider:
             provider = default_provider
         if not model:
             raise ChatRequestError("Missing model")
 
+        generation_settings = self.context_builder.build_generation_settings(
+            profile,
+            data.get("settings"),
+        )
+        if model_config_id:
+            generation_settings["_model_config_id"] = model_config_id
+
         return PreparedChatRequest(
             conversation_id=conversation_id,
             conversation=conversation,
+            model_config_id=model_config_id,
             provider=provider,
             model=model,
             input_messages=self.context_builder.build_input_messages(
@@ -103,10 +122,7 @@ class ChatService:
                 profile,
                 data["messages"],
             ),
-            generation_settings=self.context_builder.build_generation_settings(
-                profile,
-                data.get("settings"),
-            ),
+            generation_settings=generation_settings,
             request_messages=data["messages"],
             request_id=self.stream_service.resolve_request_id(data.get("request_id")),
             stream_requested=self._is_stream_requested(data.get("stream")),

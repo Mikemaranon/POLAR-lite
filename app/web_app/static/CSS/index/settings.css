@@ -57,6 +57,8 @@
     gap: 16px;
 }
 
+.settings-block--providers,
+.settings-block--models,
 .settings-block--profiles {
     grid-column: 1 / -1;
 }
@@ -87,6 +89,10 @@
     flex-wrap: wrap;
     margin-top: 14px;
     gap: 10px;
+}
+
+.settings-block__actions--flush {
+    margin-top: 0;
 }
 
 .profiles-manager {
@@ -313,6 +319,7 @@
     margin-top: 0;
 }
 
+.chat-sidebar-section[data-chat-sidebar-section="model"] .chat-sidebar-section__content-inner,
 .chat-sidebar-section[data-chat-sidebar-section="profile"] .chat-sidebar-section__content-inner {
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -328,6 +335,10 @@
         radial-gradient(circle at top right, rgba(28, 139, 89, 0.12), rgba(28, 139, 89, 0) 42%),
         rgba(255, 255, 255, 0.78);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.settings-block--models .chat-profile-card {
+    margin-top: 0;
 }
 
 .chat-tools-list,

@@ -14,24 +14,22 @@ import {
     syncMessagesAutoScrollState,
     updateStreamingAssistantMessage,
 } from "../message-ui.js";
-import { populateSettingsForm, renderConversationHeader, renderConversations, renderMessages, renderProviderControls } from "../render.js";
+import { renderConversationHeader, renderConversations, renderMessages } from "../render.js";
 import { getActualProvider, getSelectedModel } from "../provider-helpers.js";
-import { buildConversationTitle, getSelectedProfileId } from "../selectors.js";
+import { buildConversationTitle, getSelectedModelConfigId, getSelectedProfileId } from "../selectors.js";
 import {
     applyConversationDetailPayload,
     applyConversationsPayload,
-    enterHomeWorkspace,
     enterConversationWorkspace,
+    enterHomeWorkspace,
     enterProjectWorkspace,
+    patchActiveConversation,
     setActiveConversation,
     setActiveConversationId,
     setActiveGenerationRequestId,
     setActiveMessages,
     setGenerationStopRequested,
     setProjectDocuments,
-    setSelectedCloudProvider,
-    setSelectedProvider,
-    rememberSelectedModel,
 } from "../state-actions.js";
 import { state } from "../state.js";
 import { showStatus } from "../status-ui.js";
@@ -70,7 +68,7 @@ export async function handleComposerSubmit(event, { ensureActiveConversation }) 
         return;
     }
     if (!getSelectedModel()) {
-        showStatus("Selecciona un modelo disponible antes de enviar el mensaje.", true);
+        showStatus("Selecciona un modelo antes de enviar el mensaje.", true);
         return;
     }
 
@@ -96,6 +94,7 @@ export async function handleComposerSubmit(event, { ensureActiveConversation }) 
             messages: requestMessages,
             provider: getActualProvider(),
             model: getSelectedModel(),
+            model_config_id: getSelectedModelConfigId(),
             profile_id: getSelectedProfileId(),
             request_id: requestId,
         }, {
@@ -134,17 +133,18 @@ export async function handleComposerSubmit(event, { ensureActiveConversation }) 
             renderMessages();
         }
 
-        setActiveConversation({
+        const nextConversationFields = {
             ...(state.activeConversation || {}),
             id: conversationId,
+            model_config_id: getSelectedModelConfigId(),
             provider: getActualProvider(),
             model: getSelectedModel(),
             profile_id: getSelectedProfileId(),
-        });
+        };
+        setActiveConversation(nextConversationFields);
         await updateConversation({
             id: conversationId,
-            provider: getActualProvider(),
-            model: getSelectedModel(),
+            model_config_id: getSelectedModelConfigId(),
             profile_id: getSelectedProfileId(),
         });
 
@@ -228,53 +228,9 @@ export async function handleStopGeneration() {
 }
 
 
-export function handleProviderChange() {
-    setSelectedProvider(elements.providerSelect.value);
-    renderProviderControls();
-    populateSettingsForm();
-    renderConversationHeader();
-    syncComposerAvailability();
-
-    const activeCatalog = state.providerCatalogs.find(
-        (catalog) => catalog.provider === getActualProvider()
-    );
-
-    if (activeCatalog?.error?.message) {
-        showStatus(activeCatalog.error.message, true);
-    }
-}
-
-
-export function handleCloudProviderChange() {
-    setSelectedCloudProvider(elements.cloudProviderSelect.value);
-    renderProviderControls();
-    populateSettingsForm();
-    renderConversationHeader();
-    syncComposerAvailability();
-
-    const activeCatalog = state.providerCatalogs.find(
-        (catalog) => catalog.provider === getSelectedCloudProvider()
-    );
-
-    if (activeCatalog?.error?.message) {
-        showStatus(activeCatalog.error.message, true);
-    }
-}
-
-
-export function handleModelChange() {
-    const selectedModel = elements.modelSelect.value;
-    if (selectedModel) {
-        rememberSelectedModel(getActualProvider(), selectedModel);
-    }
-    renderConversationHeader();
-    syncComposerAvailability();
-}
-
-
 export async function createConversationFromUI({ handleConversationSelect, closeSidebarOnMobile }) {
     if (!getSelectedModel()) {
-        showStatus("Selecciona un modelo disponible antes de crear el chat.", true);
+        showStatus("Selecciona un modelo antes de crear el chat.", true);
         return;
     }
 
@@ -284,8 +240,7 @@ export async function createConversationFromUI({ handleConversationSelect, close
             title: "Nueva conversación",
             project_id: null,
             profile_id: getSelectedProfileId(),
-            provider: getActualProvider(),
-            model: getSelectedModel(),
+            model_config_id: getSelectedModelConfigId(),
         });
 
         await handleConversationSelect(conversationId, { closeSidebarOnMobile });
@@ -302,7 +257,7 @@ export async function ensureActiveConversation({ handleConversationSelect, close
     }
 
     if (!getSelectedModel()) {
-        throw new Error("Selecciona un modelo disponible antes de empezar a chatear.");
+        throw new Error("Selecciona un modelo antes de empezar a chatear.");
     }
 
     enterConversationWorkspace();
@@ -310,8 +265,7 @@ export async function ensureActiveConversation({ handleConversationSelect, close
         title: buildConversationTitle(),
         project_id: state.activeProjectId,
         profile_id: getSelectedProfileId(),
-        provider: getActualProvider(),
-        model: getSelectedModel(),
+        model_config_id: getSelectedModelConfigId(),
     });
     await handleConversationSelect(conversationId, { closeSidebarOnMobile });
     return conversationId;
@@ -341,7 +295,7 @@ export async function handleConversationDelete(conversationId) {
             setActiveMessages([]);
             if (state.activeProjectId) {
                 enterProjectWorkspace(state.activeProjectId);
-                } else {
+            } else {
                 enterHomeWorkspace();
             }
         }

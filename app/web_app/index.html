@@ -268,39 +268,42 @@
                                     <p class="settings-space__eyebrow">Configuración</p>
                                     <h3 class="settings-space__title">Ajustes generales</h3>
                                     <p class="settings-space__description">
-                                        Configura proveedor, modelo y conexión del entorno local. Desde aquí también puedes revisar y editar los perfiles disponibles.
+                                        Gestiona aquí proveedores, modelos y perfiles de comportamiento.
                                     </p>
                                 </div>
                             </section>
 
                             <div class="settings-space__grid">
-                                <section class="settings-block">
-                                    <h4>Modelo activo</h4>
-                                    <div class="stack-form">
-                                        <label class="field field--stacked">
-                                            <span>Proveedor</span>
-                                            <select id="provider-select"></select>
-                                        </label>
-                                        <label class="field field--stacked">
-                                            <span>Modelo disponible</span>
-                                            <select id="model-select"></select>
-                                        </label>
+                                <section class="settings-block settings-block--providers">
+                                    <div class="settings-block__header-row">
+                                        <div>
+                                            <h4>Proveedores</h4>
+                                            <p class="settings-block__copy">
+                                                Configura aquí los proveedores disponibles. MLX y Ollama vienen integrados y se pueden restaurar si hace falta.
+                                            </p>
+                                        </div>
+                                        <button id="settings-new-provider-button" class="action-button" type="button">Crear</button>
+                                    </div>
+
+                                    <div class="profiles-manager">
+                                        <div id="settings-providers-list" class="profiles-manager__list" aria-live="polite"></div>
                                     </div>
                                 </section>
 
-                                <section class="settings-block">
-                                    <h4>Claves y conexión</h4>
-                                    <form id="settings-form" class="stack-form">
-                                        <label class="field field--stacked">
-                                            <span>Proveedor cloud</span>
-                                            <select id="cloud-provider-select"></select>
-                                        </label>
-                                        <label class="field field--stacked">
-                                            <span id="cloud-api-key-label">Cloud API key</span>
-                                            <input id="openai-api-key-input" type="password" placeholder="Selecciona OpenAI, Anthropic o Google">
-                                        </label>
-                                        <button class="action-button action-button--primary" type="submit">Guardar ajustes</button>
-                                    </form>
+                                <section class="settings-block settings-block--models">
+                                    <div class="settings-block__header-row">
+                                        <div>
+                                            <h4>Modelos</h4>
+                                            <p class="settings-block__copy">
+                                                Cada modelo apunta a uno de los proveedores configurados. Marca el default desde el formulario de crear o editar.
+                                            </p>
+                                        </div>
+                                        <button id="settings-new-model-button" class="action-button" type="button">Crear</button>
+                                    </div>
+
+                                    <div class="profiles-manager">
+                                        <div id="settings-models-list" class="profiles-manager__list" aria-live="polite"></div>
+                                    </div>
                                 </section>
 
                                 <section class="settings-block settings-block--profiles">
@@ -377,6 +380,25 @@
                     <div class="chat-side-panel__body">
                         <details
                             class="chat-sidebar-section chat-sidebar-section--top"
+                            data-chat-sidebar-section="model"
+                        >
+                            <summary class="chat-sidebar-section__summary">
+                                <span class="chat-sidebar-section__label">Modelo</span>
+                                <span class="chat-sidebar-section__meta">Proveedor y modelo para este chat</span>
+                            </summary>
+                            <div class="chat-sidebar-section__content">
+                                <div class="chat-sidebar-section__content-inner">
+                                    <div id="chat-model-card" class="chat-profile-card" aria-live="polite"></div>
+                                    <div class="settings-block__actions chat-sidebar-section__actions">
+                                        <button id="change-model-button" class="ghost-button" type="button">Cambiar</button>
+                                        <button id="edit-model-button" class="ghost-button" type="button">Editar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <details
+                            class="chat-sidebar-section"
                             data-chat-sidebar-section="profile"
                         >
                             <summary class="chat-sidebar-section__summary">
@@ -387,7 +409,6 @@
                                 <div class="chat-sidebar-section__content-inner">
                                     <div id="chat-profile-card" class="chat-profile-card" aria-live="polite"></div>
                                     <div class="settings-block__actions chat-sidebar-section__actions">
-                                        <button id="new-profile-button" class="action-button" type="button">Crear</button>
                                         <button id="change-profile-button" class="ghost-button" type="button">Cambiar</button>
                                         <button id="edit-profile-button" class="ghost-button" type="button">Editar</button>
                                     </div>
@@ -413,6 +434,122 @@
                 </aside>
             </section>
         </main>
+    </div>
+
+    <div id="model-switch-modal" class="modal" hidden>
+        <div class="modal__backdrop" data-close-model-switch-modal="true"></div>
+        <div class="modal__panel modal__panel--narrow modal__panel--profile-switch">
+            <div class="modal__header">
+                <div>
+                    <p class="modal__eyebrow">Modelo</p>
+                    <h3>Cambiar modelo</h3>
+                </div>
+                <button id="close-model-switch-button" class="icon-button" type="button" aria-label="Cerrar selector de modelos">×</button>
+            </div>
+
+            <div class="modal__body">
+                <section class="settings-block">
+                    <h4>Buscar modelo</h4>
+                    <p class="settings-block__copy">
+                        Elige el modelo que se aplicará a este chat o el que quieres usar como valor por defecto.
+                    </p>
+                    <label class="field field--stacked profile-switch__search-field">
+                        <span>Barra de búsqueda</span>
+                        <input
+                            id="model-switch-search"
+                            type="search"
+                            placeholder="Busca por nombre o proveedor..."
+                            autocomplete="off"
+                        >
+                    </label>
+                    <div id="model-switch-results" class="profile-switch__results" aria-live="polite"></div>
+                    <div id="model-switch-no-results" class="profile-switch__empty" hidden>
+                        No hay modelos que coincidan con la búsqueda actual.
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="model-modal" class="modal" hidden>
+        <div class="modal__backdrop" data-close-model-modal="true"></div>
+        <div class="modal__panel modal__panel--narrow">
+            <div class="modal__header">
+                <div>
+                    <p id="model-modal-eyebrow" class="modal__eyebrow">Modelo</p>
+                    <h3 id="model-modal-title">Crear modelo</h3>
+                </div>
+                <button id="close-model-button" class="icon-button" type="button" aria-label="Cerrar modelo">×</button>
+            </div>
+
+            <div class="modal__body">
+                <section class="settings-block">
+                    <form id="model-form" class="stack-form">
+                        <input id="model-id-input" type="hidden">
+                        <input id="model-builtin-input" type="hidden" value="false">
+                        <label class="field field--stacked">
+                            <span>Nombre del modelo</span>
+                            <input id="model-name-input" type="text" placeholder="Ej. llama3.2, gpt-4.1 o gemma-3-4b-it-4bit">
+                        </label>
+                        <label class="field field--stacked">
+                            <span>Proveedor</span>
+                            <select id="model-provider-select"></select>
+                        </label>
+                        <label class="checkbox-field">
+                            <input id="model-default-input" type="checkbox">
+                            <span>Usar este modelo por defecto</span>
+                        </label>
+                        <div class="settings-block__actions">
+                            <button id="model-cancel-button" class="ghost-button" type="button">Cancelar</button>
+                            <button id="model-submit-button" class="action-button action-button--primary" type="submit">Crear modelo</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="provider-modal" class="modal" hidden>
+        <div class="modal__backdrop" data-close-provider-modal="true"></div>
+        <div class="modal__panel modal__panel--narrow">
+            <div class="modal__header">
+                <div>
+                    <p id="provider-modal-eyebrow" class="modal__eyebrow">Proveedor</p>
+                    <h3 id="provider-modal-title">Crear proveedor</h3>
+                </div>
+                <button id="close-provider-button" class="icon-button" type="button" aria-label="Cerrar proveedor">×</button>
+            </div>
+
+            <div class="modal__body">
+                <section class="settings-block">
+                    <form id="provider-form" class="stack-form">
+                        <input id="provider-id-input" type="hidden">
+                        <input id="provider-builtin-input" type="hidden" value="false">
+                        <input id="provider-builtin-key-input" type="hidden" value="">
+                        <label class="field field--stacked">
+                            <span>Nombre</span>
+                            <input id="provider-name-input" type="text" placeholder="Ej. OpenAI principal, Anthropic staging o Ollama local">
+                        </label>
+                        <label class="field field--stacked">
+                            <span>Tipo de proveedor</span>
+                            <select id="provider-type-select"></select>
+                        </label>
+                        <label class="field field--stacked">
+                            <span>Endpoint</span>
+                            <input id="provider-endpoint-input" type="url" placeholder="https://api.openai.com/v1">
+                        </label>
+                        <label class="field field--stacked">
+                            <span>API key</span>
+                            <input id="provider-api-key-input" type="password" placeholder="Clave opcional o requerida según el proveedor">
+                        </label>
+                        <div class="settings-block__actions">
+                            <button id="provider-cancel-button" class="ghost-button" type="button">Cancelar</button>
+                            <button id="provider-submit-button" class="action-button action-button--primary" type="submit">Crear proveedor</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </div>
     </div>
 
     <div id="profile-switch-modal" class="modal" hidden>

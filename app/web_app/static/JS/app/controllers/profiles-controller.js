@@ -5,6 +5,8 @@ import { closeProfileModal, closeProfileSwitchModal, openProfileModal, openProfi
 import { MAX_PROFILE_TAGS } from "../profile-helpers.js";
 import { renderChatPanel, renderConversationHeader, renderSettingsProfilesManager } from "../render.js";
 import { getDefaultProfileId } from "../selectors.js";
+import { handleModelDelete, handleModelEdit, handleModelOptionSelect } from "./models-controller.js";
+import { handleProviderDelete, handleProviderEdit, handleProviderRestore } from "./providers-controller.js";
 import {
     applyConversationsPayload,
     applyProfilesPayload,
@@ -207,6 +209,42 @@ export function handleDocumentClick(event, { handleProjectDocumentDelete }) {
     const option = event.target.closest("[data-profile-switch-option]");
     if (option) {
         handleProfileOptionSelect(Number(option.dataset.profileSwitchOption));
+        return;
+    }
+
+    const modelOption = event.target.closest("[data-model-switch-option]");
+    if (modelOption) {
+        handleModelOptionSelect(Number(modelOption.dataset.modelSwitchOption));
+        return;
+    }
+
+    const editModelButton = event.target.closest("[data-edit-model-id]");
+    if (editModelButton) {
+        handleModelEdit(Number(editModelButton.dataset.editModelId), "settings");
+        return;
+    }
+
+    const deleteModelButton = event.target.closest("[data-delete-model-id]");
+    if (deleteModelButton) {
+        handleModelDelete(Number(deleteModelButton.dataset.deleteModelId));
+        return;
+    }
+
+    const editProviderButton = event.target.closest("[data-edit-provider-id]");
+    if (editProviderButton) {
+        handleProviderEdit(Number(editProviderButton.dataset.editProviderId));
+        return;
+    }
+
+    const deleteProviderButton = event.target.closest("[data-delete-provider-id]");
+    if (deleteProviderButton) {
+        handleProviderDelete(Number(deleteProviderButton.dataset.deleteProviderId));
+        return;
+    }
+
+    const restoreProviderButton = event.target.closest("[data-restore-provider-id]");
+    if (restoreProviderButton) {
+        handleProviderRestore(Number(restoreProviderButton.dataset.restoreProviderId));
         return;
     }
 

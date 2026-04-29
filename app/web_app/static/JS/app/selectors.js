@@ -15,6 +15,29 @@ export function getProfileNameById(profileId) {
 }
 
 
+export function getProviderNameById(providerId) {
+    if (!providerId) {
+        return "sin proveedor";
+    }
+
+    return state.providers.find((provider) => provider.id === Number(providerId))?.name || "sin proveedor";
+}
+
+
+export function getDefaultModelConfigId() {
+    return state.models.find((model) => model.is_default)?.id || state.models[0]?.id || null;
+}
+
+
+export function getModelConfigById(modelConfigId) {
+    if (!modelConfigId) {
+        return null;
+    }
+
+    return state.models.find((model) => model.id === Number(modelConfigId)) || null;
+}
+
+
 export function getActiveProject() {
     return state.projects.find((project) => project.id === state.activeProjectId) || null;
 }
@@ -44,6 +67,19 @@ export function getSelectedProfileId() {
     }
 
     return getDefaultProfileId();
+}
+
+
+export function getSelectedModelConfigId() {
+    if (state.activeConversation?.model_config_id) {
+        return Number(state.activeConversation.model_config_id);
+    }
+
+    if (state.pendingModelConfigId) {
+        return Number(state.pendingModelConfigId);
+    }
+
+    return getDefaultModelConfigId();
 }
 
 

@@ -30,6 +30,15 @@ class DBManagerTests(IsolatedDatabaseTestCase):
         self.assertEqual(default_profile["name"], "Default Assistant")
         self.assertTrue(default_profile["is_default"])
 
+    def test_seeds_builtin_providers_on_first_boot(self):
+        db = DBManager()
+
+        providers = db.providers.all()
+        provider_types = {provider["provider_type"] for provider in providers}
+
+        self.assertIn("mlx", provider_types)
+        self.assertIn("ollama", provider_types)
+
     def test_projects_conversations_and_messages_roundtrip(self):
         db = DBManager()
         profile = db.profiles.get_default()
@@ -150,3 +159,18 @@ class DBManagerTests(IsolatedDatabaseTestCase):
                 "python",
             ],
         )
+
+    def test_models_reference_provider_records(self):
+        db = DBManager()
+        ollama_provider = db.providers.get_first_by_type("ollama")
+
+        model_id = db.models.create(
+            name="qwen3",
+            provider_config_id=ollama_provider["id"],
+        )
+
+        model = db.models.get(model_id)
+
+        self.assertEqual(model["provider_id"], ollama_provider["id"])
+        self.assertEqual(model["provider_name"], ollama_provider["name"])
+        self.assertEqual(model["provider_type"], "ollama")

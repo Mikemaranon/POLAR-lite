@@ -20,12 +20,14 @@ CHAT_SCHEMA_STATEMENTS = [
         title TEXT NOT NULL DEFAULT 'New Chat',
         project_id INTEGER,
         profile_id INTEGER,
+        model_config_id INTEGER,
         provider TEXT NOT NULL,
         model TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-        FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL
+        FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL,
+        FOREIGN KEY (model_config_id) REFERENCES models(id) ON DELETE SET NULL
     )
     """,
     """

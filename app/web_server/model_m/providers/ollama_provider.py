@@ -16,8 +16,9 @@ class OllamaProvider(ModelProvider):
         self.http_client = http_client or JsonHttpClient(config.request_timeout_seconds)
 
     def list_models(self) -> list[dict]:
+        base_url = self._get_base_url()
         response = self.http_client.get_json(
-            f"{self.config.ollama_base_url}/tags",
+            f"{base_url}/tags",
             headers=self._build_headers(),
             provider_name=self.provider_name,
         )
@@ -47,9 +48,10 @@ class OllamaProvider(ModelProvider):
 
     def chat(self, messages: list[dict], model: str, settings: dict | None = None) -> dict:
         payload = self._build_chat_payload(messages, model, settings, stream=False)
+        base_url = self._get_base_url(settings=settings)
 
         response = self.http_client.post_json(
-            f"{self.config.ollama_base_url}/chat",
+            f"{base_url}/chat",
             payload,
             headers=self._build_headers(),
             provider_name=self.provider_name,
@@ -78,6 +80,7 @@ class OllamaProvider(ModelProvider):
         should_stop=None,
     ):
         payload = self._build_chat_payload(messages, model, settings, stream=True)
+        base_url = self._get_base_url(settings=settings)
         content_parts = []
         finish_reason = "stop"
         usage = {}
@@ -85,7 +88,7 @@ class OllamaProvider(ModelProvider):
         chunk_count = 0
 
         for chunk in self.http_client.stream_json_lines(
-            f"{self.config.ollama_base_url}/chat",
+            f"{base_url}/chat",
             payload,
             headers=self._build_headers(),
             provider_name=self.provider_name,
@@ -154,6 +157,14 @@ class OllamaProvider(ModelProvider):
         if not api_key:
             return {}
         return {"Authorization": f"Bearer {api_key}"}
+
+    def _get_base_url(self, settings=None):
+        model_config_id = (settings or {}).get("_model_config_id")
+        return self.settings_resolver.get_provider_endpoint(
+            self.provider_name,
+            self.config.ollama_base_url,
+            model_config_id=model_config_id,
+        )
 
     def _build_options(self, settings):
         common = self.get_common_generation_settings(settings)

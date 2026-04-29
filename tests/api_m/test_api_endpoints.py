@@ -7,25 +7,27 @@ from api_m.domains.chat_api import ChatAPI
 
 
 class ApiEndpointTests(ApiTestCase):
-    def test_models_endpoint_returns_provider_catalog(self):
-        self.model_manager.list_models = lambda provider=None: {
-            "providers": [
-                {
-                    "provider": "mlx",
-                    "available": True,
-                    "models": [{"id": "gemma-3", "provider": "mlx"}],
-                    "error": None,
-                }
-            ]
-        }
-
+    def test_models_endpoint_returns_configured_models(self):
         response = self.client.get("/api/models", headers=self.auth_headers)
         payload = response.get_json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(payload["providers"][0]["provider"], "mlx")
+        self.assertIn("models", payload)
+        self.assertGreaterEqual(len(payload["models"]), 1)
+        self.assertIn(payload["models"][0]["provider"], {"mlx", "ollama"})
+        self.assertIn("name", payload["models"][0])
 
     def test_projects_profiles_and_conversations_can_be_created(self):
+        provider_response = self.client.post(
+            "/api/providers",
+            json={
+                "name": "OpenAI Sandbox",
+                "provider_type": "openai",
+                "endpoint": "https://api.openai.com/v1",
+                "api_key": "test-key",
+            },
+            headers=self.auth_headers,
+        )
         project_response = self.client.post(
             "/api/projects",
             json={"name": "Demo Project", "description": "Sandbox"},
@@ -43,8 +45,19 @@ class ApiEndpointTests(ApiTestCase):
             headers=self.auth_headers,
         )
 
+        provider = provider_response.get_json()["provider"]
         project = project_response.get_json()["project"]
         profile = profile_response.get_json()["profile"]
+        model_response = self.client.post(
+            "/api/models",
+            json={
+                "name": "gpt-4.1",
+                "provider_id": provider["id"],
+                "is_default": True,
+            },
+            headers=self.auth_headers,
+        )
+        model = model_response.get_json()["model"]
 
         conversation_response = self.client.post(
             "/api/conversations",
@@ -52,19 +65,21 @@ class ApiEndpointTests(ApiTestCase):
                 "title": "Planning",
                 "project_id": project["id"],
                 "profile_id": profile["id"],
-                "provider": "ollama",
-                "model": "gemma3",
+                "model_config_id": model["id"],
             },
             headers=self.auth_headers,
         )
         conversation = conversation_response.get_json()["conversation"]
 
+        self.assertEqual(provider_response.status_code, 201)
         self.assertEqual(project_response.status_code, 201)
         self.assertEqual(profile_response.status_code, 201)
+        self.assertEqual(model_response.status_code, 201)
         self.assertEqual(conversation_response.status_code, 201)
         self.assertEqual(conversation["project_id"], project["id"])
         self.assertEqual(conversation["profile_id"], profile["id"])
-        self.assertEqual(conversation["provider"], "ollama")
+        self.assertEqual(conversation["provider"], "openai")
+        self.assertEqual(conversation["model_config_id"], model["id"])
 
     def test_chat_endpoint_applies_profile_and_persists_turn(self):
         profile_id = self.db.profiles.create(

@@ -7,15 +7,16 @@ class ConversationsTable:
         title="New Chat",
         project_id=None,
         profile_id=None,
+        model_config_id=None,
         provider="mlx",
         model="",
     ):
         _, conversation_id = self.db.execute(
             """
-            INSERT INTO conversations (title, project_id, profile_id, provider, model)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO conversations (title, project_id, profile_id, model_config_id, provider, model)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (title, project_id, profile_id, provider, model),
+            (title, project_id, profile_id, model_config_id, provider, model),
             lastrowid=True
         )
         return conversation_id
@@ -23,7 +24,7 @@ class ConversationsTable:
     def get(self, conversation_id):
         _, row = self.db.execute(
             """
-            SELECT id, title, project_id, profile_id, provider, model,
+            SELECT id, title, project_id, profile_id, model_config_id, provider, model,
                    created_at, updated_at
             FROM conversations
             WHERE id = ?
@@ -35,7 +36,7 @@ class ConversationsTable:
 
     def all(self, project_id=None):
         query = """
-            SELECT id, title, project_id, profile_id, provider, model,
+            SELECT id, title, project_id, profile_id, model_config_id, provider, model,
                    created_at, updated_at
             FROM conversations
         """
@@ -55,6 +56,7 @@ class ConversationsTable:
         title,
         project_id,
         profile_id,
+        model_config_id,
         provider,
         model,
     ):
@@ -64,12 +66,13 @@ class ConversationsTable:
             SET title = ?,
                 project_id = ?,
                 profile_id = ?,
+                model_config_id = ?,
                 provider = ?,
                 model = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
-            (title, project_id, profile_id, provider, model, conversation_id)
+            (title, project_id, profile_id, model_config_id, provider, model, conversation_id)
         )
 
     def touch(self, conversation_id):
@@ -108,8 +111,9 @@ class ConversationsTable:
             "title": row[1],
             "project_id": row[2],
             "profile_id": row[3],
-            "provider": row[4],
-            "model": row[5],
-            "created_at": row[6],
-            "updated_at": row[7],
+            "model_config_id": row[4],
+            "provider": row[5],
+            "model": row[6],
+            "created_at": row[7],
+            "updated_at": row[8],
         }
