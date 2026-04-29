@@ -464,9 +464,7 @@ function renderInlineMarkdown(content) {
     const tokens = [];
     let text = String(content || "");
 
-    text = replaceWithTokens(text, /(`+)([^`\n](?:[\s\S]*?[^`\n])?)\1/g, (match, _, code) => {
-        return preserveToken(tokens, `<code>${escapeHtml(code)}</code>`);
-    });
+    text = tokenizeInlineCodeSpans(text, tokens);
 
     text = replaceWithTokens(text, /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (match, alt, url) => {
         const safeUrl = sanitizeUrl(url);
@@ -528,6 +526,72 @@ function renderInlineMarkdown(content) {
     });
 
     return text;
+}
+
+
+function tokenizeInlineCodeSpans(text, tokens) {
+    let result = "";
+    let index = 0;
+
+    while (index < text.length) {
+        if (text[index] !== "`") {
+            result += text[index];
+            index += 1;
+            continue;
+        }
+
+        const openingIndex = index;
+        const openingFenceLength = readBacktickRunLength(text, index);
+        index += openingFenceLength;
+
+        const closingIndex = findClosingBacktickFence(text, index, openingFenceLength);
+        if (closingIndex === -1) {
+            result += text.slice(openingIndex, index);
+            continue;
+        }
+
+        const codeContent = text.slice(index, closingIndex);
+        result += preserveToken(tokens, `<code>${escapeHtml(codeContent)}</code>`);
+        index = closingIndex + openingFenceLength;
+    }
+
+    return result;
+}
+
+
+function readBacktickRunLength(text, index) {
+    let runLength = 0;
+
+    while (text[index + runLength] === "`") {
+        runLength += 1;
+    }
+
+    return runLength;
+}
+
+
+function findClosingBacktickFence(text, startIndex, openingFenceLength) {
+    let index = startIndex;
+
+    while (index < text.length) {
+        if (text[index] === "\n") {
+            return -1;
+        }
+
+        if (text[index] !== "`") {
+            index += 1;
+            continue;
+        }
+
+        const runLength = readBacktickRunLength(text, index);
+        if (runLength === openingFenceLength) {
+            return index;
+        }
+
+        index += runLength;
+    }
+
+    return -1;
 }
 
 
