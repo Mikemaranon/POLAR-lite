@@ -143,8 +143,8 @@
 
     .prompt-card {
         min-width: 0;
-        max-width: none;
-        padding: 12px;
+        min-height: 98px;
+        padding: 14px;
         gap: 4px;
     }
 
@@ -205,7 +205,8 @@
     }
 
     .prompt-card {
-        padding: 10px;
+        min-height: 92px;
+        padding: 12px;
     }
 
     .prompt-card strong {

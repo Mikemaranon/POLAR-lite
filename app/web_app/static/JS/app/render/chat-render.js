@@ -22,7 +22,7 @@ export function renderMessages({ preserveViewport = false } = {}) {
 
     elements.messagesContainer.hidden = false;
     elements.messagesContainer.innerHTML = state.activeMessages
-        .map((message) => createMessageMarkup(message.role, message.content))
+        .map((message) => createMessageMarkup(message))
         .join("");
 
     if (preserveViewport) {

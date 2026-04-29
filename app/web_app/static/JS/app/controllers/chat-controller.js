@@ -5,6 +5,7 @@ import { confirmAction } from "../dialogs.js";
 import { elements } from "../dom.js";
 import {
     appendStreamingAssistantMessage,
+    createPendingAssistantMessage,
     appendTypingMessage,
     disableMessagesAutoScroll,
     enableMessagesAutoScroll,
@@ -86,7 +87,8 @@ export async function handleComposerSubmit(event, { ensureActiveConversation }) 
         renderMessages();
         elements.composerInput.value = "";
         autoResizeComposerHeight();
-        appendTypingMessage();
+        let assistantMessageMeta = createPendingAssistantMessage();
+        appendTypingMessage(assistantMessageMeta);
 
         let streamingAssistantMessage = null;
         const payload = await sendChatStream({
@@ -102,16 +104,23 @@ export async function handleComposerSubmit(event, { ensureActiveConversation }) 
                 if (payloadData?.request_id) {
                     setActiveGenerationRequestId(payloadData.request_id);
                 }
+                if (payloadData?.message_meta) {
+                    assistantMessageMeta = {
+                        ...assistantMessageMeta,
+                        ...payloadData.message_meta,
+                    };
+                }
             },
             onDelta(delta) {
                 if (!streamingAssistantMessage) {
                     removeTypingMessage();
                     streamingAssistantMessage = {
+                        ...assistantMessageMeta,
                         role: "assistant",
                         content: "",
                     };
                     state.activeMessages.push(streamingAssistantMessage);
-                    appendStreamingAssistantMessage();
+                    appendStreamingAssistantMessage(streamingAssistantMessage);
                 }
 
                 streamingAssistantMessage.content += delta;
@@ -121,6 +130,7 @@ export async function handleComposerSubmit(event, { ensureActiveConversation }) 
 
         removeTypingMessage();
         if (streamingAssistantMessage) {
+            Object.assign(streamingAssistantMessage, payload.message);
             streamingAssistantMessage.content = payload.message.content;
             if (payload.message.content) {
                 finalizeStreamingAssistantMessage(payload.message.content);
@@ -228,26 +238,11 @@ export async function handleStopGeneration() {
 }
 
 
-export async function createConversationFromUI({ handleConversationSelect, closeSidebarOnMobile }) {
-    if (!getSelectedModel()) {
-        showStatus("Selecciona un modelo antes de crear el chat.", true);
-        return;
-    }
-
-    try {
-        enterConversationWorkspace();
-        const conversationId = await createConversationRecord({
-            title: "Nueva conversación",
-            project_id: null,
-            profile_id: getSelectedProfileId(),
-            model_config_id: getSelectedModelConfigId(),
-        });
-
-        await handleConversationSelect(conversationId, { closeSidebarOnMobile });
-        closeSidebarOnMobile();
-    } catch (error) {
-        showStatus(error.message || "No se pudo crear la conversación.", true);
-    }
+export function openNewConversationWorkspace({ closeSidebarOnMobile }) {
+    enterHomeWorkspace();
+    renderApp();
+    closeSidebarOnMobile();
+    elements.composerInput.focus();
 }
 
 

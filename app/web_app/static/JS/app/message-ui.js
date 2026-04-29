@@ -1,29 +1,31 @@
 import { elements } from "./dom.js";
-import { escapeHtml } from "./html.js";
+import { createModelAvatarMarkup, escapeHtml } from "./html.js";
 import { renderMarkdown } from "./markdown.js";
+import {
+    getModelConfigById,
+    getModelDisplayNameById,
+    getProfileNameById,
+    getSelectedModelConfigId,
+    getSelectedProfileId,
+} from "./selectors.js";
 import { state } from "./state.js";
 
 const MESSAGES_AUTO_SCROLL_THRESHOLD = 24;
 
 
-export function createMessageMarkup(role, content) {
-    const isUser = role === "user";
-    const roleLabel = isUser ? "Tú" : "Asistente";
-    const avatar = isUser ? "YOU" : "AI";
+export function createMessageMarkup(message) {
+    const isUser = message.role === "user";
+    const roleLabel = isUser ? "Tú" : null;
     const contentClass = isUser ? "message__content--plain" : "message__content--markdown";
     const renderedContent = isUser
-        ? escapeHtml(content || "")
-        : renderMarkdown(content || "");
+        ? escapeHtml(message.content || "")
+        : renderMarkdown(message.content || "");
 
-    return `
-        <article class="message message--${isUser ? "user" : "assistant"}">
-            <div class="message__avatar">${avatar}</div>
-            <div class="message__card">
-                <div class="message__meta">${roleLabel}</div>
-                <div class="message__content ${contentClass}" data-message-content="true">${renderedContent}</div>
-            </div>
-        </article>
-    `;
+    return createMessageFrameMarkup(
+        message,
+        `<div class="message__content ${contentClass}" data-message-content="true">${renderedContent}</div>`,
+        createMessageMetaMarkup(message, roleLabel),
+    );
 }
 
 
@@ -72,20 +74,17 @@ export function keepMessagesPinnedToBottomIfNeeded() {
 }
 
 
-export function appendTypingMessage() {
+export function appendTypingMessage(message = createPendingAssistantMessage()) {
     elements.emptyState.hidden = true;
     elements.messagesContainer.hidden = false;
     elements.messagesContainer.insertAdjacentHTML(
         "beforeend",
-        `
-            <div class="message message--assistant" data-typing-message="true">
-                <div class="message__avatar">AI</div>
-                <div class="message__card">
-                    <div class="message__meta">Asistente</div>
-                    <div class="typing-indicator"><span></span><span></span><span></span></div>
-                </div>
-            </div>
-        `
+        createMessageFrameMarkup(
+            message,
+            `<div class="typing-indicator"><span></span><span></span><span></span></div>`,
+            createMessageMetaMarkup(message),
+            ` data-typing-message="true"`,
+        )
     );
     keepMessagesPinnedToBottomIfNeeded();
 }
@@ -96,20 +95,17 @@ export function removeTypingMessage() {
 }
 
 
-export function appendStreamingAssistantMessage() {
+export function appendStreamingAssistantMessage(message = createPendingAssistantMessage()) {
     elements.emptyState.hidden = true;
     elements.messagesContainer.hidden = false;
     elements.messagesContainer.insertAdjacentHTML(
         "beforeend",
-        `
-            <article class="message message--assistant" data-streaming-message="true">
-                <div class="message__avatar">AI</div>
-                <div class="message__card">
-                    <div class="message__meta">Asistente</div>
-                    <div class="message__content message__content--markdown" data-message-content="true"></div>
-                </div>
-            </article>
-        `
+        createMessageFrameMarkup(
+            message,
+            `<div class="message__content message__content--markdown" data-message-content="true"></div>`,
+            createMessageMetaMarkup(message),
+            ` data-streaming-message="true"`,
+        )
     );
     keepMessagesPinnedToBottomIfNeeded();
 }
@@ -142,4 +138,79 @@ export function finalizeStreamingAssistantMessage(content) {
 
 export function removeStreamingAssistantMessage() {
     document.querySelector("[data-streaming-message='true']")?.remove();
+}
+
+
+export function createPendingAssistantMessage() {
+    const selectedModel = getModelConfigById(getSelectedModelConfigId()) || null;
+    const selectedProfileId = getSelectedProfileId();
+
+    return {
+        role: "assistant",
+        content: "",
+        model_config_id: selectedModel?.id || state.activeConversation?.model_config_id || null,
+        model_name: selectedModel?.display_name || selectedModel?.name || state.activeConversation?.model || "Asistente",
+        profile_id: selectedProfileId,
+        profile_name: getProfileNameById(selectedProfileId),
+    };
+}
+
+
+function createMessageFrameMarkup(message, bodyMarkup, metaMarkup, articleAttributes = "") {
+    const isUser = message.role === "user";
+    const avatarMarkup = isUser
+        ? `<div class="message__avatar">YOU</div>`
+        : createModelAvatarMarkup(
+            resolveAssistantModelName(message),
+            resolveAssistantIconImage(message),
+            "message__avatar",
+        );
+
+    return `
+        <article class="message message--${isUser ? "user" : "assistant"}"${articleAttributes}>
+            ${avatarMarkup}
+            <div class="message__card">
+                <div class="message__meta">${metaMarkup}</div>
+                ${bodyMarkup}
+            </div>
+        </article>
+    `;
+}
+
+
+function createMessageMetaMarkup(message, userLabel = "Tú") {
+    if (message.role === "user") {
+        return escapeHtml(userLabel);
+    }
+
+    return `
+        <span class="message__meta-model">${escapeHtml(resolveAssistantModelName(message))}</span>
+        <span class="message__meta-separator" aria-hidden="true">|</span>
+        <span class="message__meta-profile">${escapeHtml(resolveAssistantProfileName(message))}</span>
+    `;
+}
+
+
+function resolveAssistantModelName(message) {
+    if (message.model_name) {
+        return message.model_name;
+    }
+
+    return getModelDisplayNameById(message.model_config_id)
+        || state.activeConversation?.model
+        || "Asistente";
+}
+
+
+function resolveAssistantProfileName(message) {
+    if (message.profile_name) {
+        return message.profile_name;
+    }
+
+    return getProfileNameById(message.profile_id || state.activeConversation?.profile_id);
+}
+
+
+function resolveAssistantIconImage(message) {
+    return getModelConfigById(message.model_config_id)?.icon_image || "";
 }

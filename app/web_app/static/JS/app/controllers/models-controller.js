@@ -30,21 +30,29 @@ import { state } from "../state.js";
 import { showStatus } from "../status-ui.js";
 import { loadConversations, loadModels } from "../store.js";
 
+const ALLOWED_MODEL_ICON_TYPES = new Set([
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+]);
+const MAX_MODEL_ICON_SIZE_BYTES = 512 * 1024;
+
 
 export async function handleModelSubmit(event) {
     event.preventDefault();
 
-    const modelPayload = readModelFormValues();
-    if (!modelPayload.name) {
-        showStatus("El modelo necesita un nombre.", true);
-        return;
-    }
-    if (!modelPayload.provider_id) {
-        showStatus("Selecciona un proveedor para este modelo.", true);
-        return;
-    }
-
     try {
+        const modelPayload = await readModelFormValues();
+        if (!modelPayload.name) {
+            showStatus("El modelo necesita un nombre técnico.", true);
+            return;
+        }
+        if (!modelPayload.provider_id) {
+            showStatus("Selecciona un proveedor para este modelo.", true);
+            return;
+        }
+
         const isEditing = Boolean(modelPayload.id);
         const payload = isEditing
             ? await updateModel(modelPayload)
@@ -108,7 +116,7 @@ export function openCreateModelModal(context = "settings") {
     });
     populateModelModal();
     openModelModal();
-    elements.modelNameInput?.focus({ preventScroll: true });
+    elements.modelDisplayNameInput?.focus({ preventScroll: true });
 }
 
 
@@ -132,7 +140,7 @@ export function handleModelEdit(modelConfigId, context = "settings") {
     populateModelModal(model);
     renderSettingsModelsManager();
     openModelModal();
-    elements.modelNameInput?.focus({ preventScroll: true });
+    elements.modelDisplayNameInput?.focus({ preventScroll: true });
 }
 
 
@@ -150,7 +158,7 @@ export async function handleModelDelete(modelConfigId) {
     const confirmed = await confirmAction({
         eyebrow: "Modelo",
         title: "Borrar modelo",
-        message: `Se borrará "${model.name}". Los chats que lo usaban pasarán al modelo de respaldo que determine la aplicación.`,
+        message: `Se borrará "${model.display_name || model.name}". Los chats que lo usaban pasarán al modelo de respaldo que determine la aplicación.`,
         confirmLabel: "Borrar modelo",
         confirmVariant: "danger",
     });
@@ -219,6 +227,22 @@ export function handleModelSearchInput(event) {
 }
 
 
+export async function handleModelIconInputChange() {
+    try {
+        const iconImage = await readModelIconFromInput();
+        setModelIconValue(iconImage);
+    } catch (error) {
+        resetModelIconInputs();
+        showStatus(error.message || "No se pudo cargar el icono del modelo.", true);
+    }
+}
+
+
+export function handleModelIconClear() {
+    resetModelIconInputs();
+}
+
+
 export function getModelProviderOptionsMarkup(selectedProviderId = null) {
     return (state.providers || []).map((provider) => {
         const selected = Number(selectedProviderId) === provider.id ? " selected" : "";
@@ -273,11 +297,18 @@ async function assignModelToCurrentChat(modelConfigId) {
 }
 
 
-function readModelFormValues() {
+async function readModelFormValues() {
+    const iconImage = await readModelIconFromInput();
+    if (iconImage || !elements.modelIconDataInput?.value) {
+        setModelIconValue(iconImage);
+    }
+
     return {
         id: Number(elements.modelIdInput?.value || "0") || undefined,
+        display_name: elements.modelDisplayNameInput?.value.trim() || "",
         name: elements.modelNameInput?.value.trim() || "",
         provider_id: Number(elements.modelProviderSelect?.value || "0") || undefined,
+        icon_image: elements.modelIconDataInput?.value || "",
         is_default: Boolean(elements.modelDefaultInput?.checked),
         is_builtin: elements.modelBuiltinInput?.value === "true",
     };
@@ -286,14 +317,77 @@ function readModelFormValues() {
 
 function populateModelModal(model = null) {
     const isEditing = Boolean(model);
+    const modelLabel = model?.display_name || model?.name || "";
 
     elements.modelModalEyebrow.textContent = isEditing ? "Editar modelo" : "Modelo";
-    elements.modelModalTitle.textContent = isEditing ? model.name : "Crear modelo";
+    elements.modelModalTitle.textContent = isEditing ? modelLabel : "Crear modelo";
     elements.modelSubmitButton.textContent = isEditing ? "Guardar cambios" : "Crear modelo";
     elements.modelIdInput.value = isEditing ? String(model.id) : "";
     elements.modelBuiltinInput.value = isEditing && model.is_builtin ? "true" : "false";
+    elements.modelDisplayNameInput.value = model?.display_name || model?.name || "";
     elements.modelNameInput.value = model?.name || "";
     elements.modelProviderSelect.innerHTML = getModelProviderOptionsMarkup(model?.provider_id || state.providers[0]?.id || null);
     elements.modelProviderSelect.value = String(model?.provider_id || state.providers[0]?.id || "");
     elements.modelDefaultInput.checked = Boolean(model?.is_default);
+    if (elements.modelIconInput) {
+        elements.modelIconInput.value = "";
+    }
+    setModelIconValue(model?.icon_image || "");
+}
+
+
+async function readModelIconFromInput() {
+    const file = elements.modelIconInput?.files?.[0];
+    if (!file) {
+        return "";
+    }
+
+    if (!ALLOWED_MODEL_ICON_TYPES.has(file.type)) {
+        throw new Error("El icono debe ser PNG, JPEG, WEBP o GIF.");
+    }
+
+    if (file.size > MAX_MODEL_ICON_SIZE_BYTES) {
+        throw new Error("El icono supera el límite de 512 KB.");
+    }
+
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("No se pudo leer el icono seleccionado."));
+        reader.readAsDataURL(file);
+    });
+}
+
+
+function resetModelIconInputs() {
+    if (elements.modelIconInput) {
+        elements.modelIconInput.value = "";
+    }
+    setModelIconValue("");
+}
+
+
+function setModelIconValue(iconImage) {
+    if (elements.modelIconDataInput) {
+        elements.modelIconDataInput.value = iconImage || "";
+    }
+    syncModelIconPreview(iconImage || "");
+}
+
+
+function syncModelIconPreview(iconImage) {
+    if (!elements.modelIconPreview) {
+        return;
+    }
+
+    const hasIcon = Boolean(iconImage);
+    elements.modelIconPreview.innerHTML = hasIcon
+        ? `<img src="${iconImage}" alt="Vista previa del icono del modelo">`
+        : `<span>AI</span>`;
+
+    elements.modelIconPreview.classList.toggle("is-empty", !hasIcon);
+
+    if (elements.modelIconClearButton) {
+        elements.modelIconClearButton.hidden = !hasIcon;
+    }
 }

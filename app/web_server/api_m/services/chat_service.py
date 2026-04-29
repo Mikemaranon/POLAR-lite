@@ -23,6 +23,7 @@ class PreparedChatRequest:
     request_messages: list[dict]
     request_id: str
     stream_requested: bool
+    assistant_message_meta: dict
 
 
 class ChatService:
@@ -64,6 +65,7 @@ class ChatService:
                 prepared.model,
                 prepared.generation_settings,
                 prepared.request_id,
+                prepared.assistant_message_meta,
             )
 
         response = self._run_chat(prepared)
@@ -126,6 +128,12 @@ class ChatService:
             request_messages=data["messages"],
             request_id=self.stream_service.resolve_request_id(data.get("request_id")),
             stream_requested=self._is_stream_requested(data.get("stream")),
+            assistant_message_meta=self._build_assistant_message_meta(
+                model_config,
+                profile,
+                provider,
+                model,
+            ),
         )
 
     def _run_chat(self, prepared):
@@ -143,6 +151,7 @@ class ChatService:
             self.persistence_service.finalize_response(
                 prepared.conversation_id,
                 response,
+                prepared.assistant_message_meta,
             )
 
         return response
@@ -178,3 +187,12 @@ class ChatService:
             return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
         return bool(raw_value)
+
+    def _build_assistant_message_meta(self, model_config, profile, provider, model):
+        return {
+            "model_config_id": model_config["id"] if model_config else None,
+            "model_name": model_config["display_name"] if model_config else model,
+            "profile_id": profile["id"] if profile else None,
+            "profile_name": profile["name"] if profile else "",
+            "provider": provider,
+        }

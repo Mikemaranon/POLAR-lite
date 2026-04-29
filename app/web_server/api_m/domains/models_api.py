@@ -2,6 +2,13 @@ from flask import request
 
 from api_m.domains.base_api import BaseAPI
 
+ALLOWED_MODEL_ICON_MIME_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+}
+
 
 class ModelsAPI(BaseAPI):
     def register(self):
@@ -91,6 +98,7 @@ class ModelsAPI(BaseAPI):
     def _parse_model_payload(self, data):
         self.require_fields(data, "name", "provider_id")
         name = str(data.get("name", "")).strip()
+        display_name = str(data.get("display_name", "")).strip()
         provider_config_id = self.parse_int(data.get("provider_id"), "provider_id")
 
         if not name:
@@ -104,7 +112,9 @@ class ModelsAPI(BaseAPI):
 
         return {
             "name": name,
+            "display_name": display_name or name,
             "provider_config_id": provider_config_id,
+            "icon_image": self._parse_icon_image(data.get("icon_image")),
             "is_default": bool(data.get("is_default", False)),
             "is_builtin": is_builtin,
         }
@@ -120,3 +130,32 @@ class ModelsAPI(BaseAPI):
             """,
             (model["provider"], model["name"], model["id"]),
         )
+        self.db.execute(
+            """
+            UPDATE messages
+            SET model_name = ?
+            WHERE model_config_id = ?
+            """,
+            (model["display_name"] or model["name"], model["id"]),
+        )
+
+    def _parse_icon_image(self, raw_value):
+        icon_image = str(raw_value or "").strip()
+        if not icon_image:
+            return ""
+
+        prefix, separator, payload = icon_image.partition(",")
+        if separator != "," or not prefix.startswith("data:") or ";base64" not in prefix:
+            raise ValueError("icon_image must be a base64 data URL")
+
+        mime_type = prefix[5:].split(";", 1)[0].strip().lower()
+        if mime_type not in ALLOWED_MODEL_ICON_MIME_TYPES:
+            raise ValueError("icon_image must be PNG, JPEG, WEBP o GIF")
+
+        if not payload:
+            raise ValueError("icon_image payload is empty")
+
+        if len(icon_image) > 700_000:
+            raise ValueError("icon_image is too large")
+
+        return icon_image

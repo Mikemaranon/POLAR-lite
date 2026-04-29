@@ -1,5 +1,5 @@
 import { elements } from "../dom.js";
-import { escapeHtml } from "../html.js";
+import { createModelAvatarMarkup, escapeHtml } from "../html.js";
 import { PROFILE_SETTINGS_PREVIEW_TAGS } from "../profile-helpers.js";
 import { getProviderTypeDisplayName } from "../provider-helpers.js";
 import {
@@ -126,12 +126,17 @@ export function renderSettingsModelsManager() {
             const defaultBadge = model.is_default
                 ? `<span class="profile-summary-card__badge">Default</span>`
                 : "";
+            const modelLabel = model.display_name || model.name;
+            const avatar = createModelAvatarMarkup(modelLabel, model.icon_image, "model-badge-avatar");
             return `
                 <article class="profile-summary-card">
                     <div class="profile-summary-card__top">
                         <div class="profile-summary-card__heading">
-                            <strong class="profile-summary-card__name">${escapeHtml(model.name)}</strong>
-                            <p class="profile-summary-card__personality">${escapeHtml(model.provider_name || getProviderTypeDisplayName(model.provider))}</p>
+                            <div class="profile-summary-card__identity">
+                                ${avatar}
+                                <strong class="profile-summary-card__name">${escapeHtml(modelLabel)}</strong>
+                            </div>
+                            <p class="profile-summary-card__personality">${escapeHtml(model.name)}</p>
                         </div>
                         <div class="profile-summary-card__status">
                             ${defaultBadge}
@@ -251,13 +256,19 @@ export function renderModelSwitchModal() {
         ? models.map((model) => {
             const isSelected = model.id === Number(selectedModelId);
             const suffix = model.is_default ? " · default" : "";
+            const modelLabel = model.display_name || model.name;
+            const avatar = createModelAvatarMarkup(modelLabel, model.icon_image, "model-badge-avatar model-badge-avatar--switch");
             return `
                 <button
                     class="profile-switch__option${isSelected ? " is-selected" : ""}"
                     type="button"
                     data-model-switch-option="${model.id}"
                 >
-                    <span class="profile-switch__option-name">${escapeHtml(model.name)}</span>
+                    <span class="profile-switch__option-top">
+                        ${avatar}
+                        <span class="profile-switch__option-name">${escapeHtml(modelLabel)}</span>
+                    </span>
+                    <span class="profile-switch__option-meta">${escapeHtml(model.name)}</span>
                     <span class="profile-switch__option-meta">${escapeHtml((model.provider_name || getProviderTypeDisplayName(model.provider)) + suffix)}</span>
                 </button>
             `;
@@ -427,6 +438,7 @@ function renderChatProfileCard() {
 
 
 function createModelCardMarkup(model, { includeDefaultBadge = false } = {}) {
+    const modelLabel = model.display_name || model.name;
     const defaultBadge = includeDefaultBadge && model.is_default
         ? `<span class="chat-profile-card__badge">Default</span>`
         : "";
@@ -435,11 +447,15 @@ function createModelCardMarkup(model, { includeDefaultBadge = false } = {}) {
         <article class="chat-profile-card__surface">
             <div class="chat-profile-card__top">
                 <div class="chat-profile-card__heading">
-                    <strong>${escapeHtml(model.name)}</strong>
+                    <div class="chat-profile-card__identity">
+                        ${createModelAvatarMarkup(modelLabel, model.icon_image, "model-badge-avatar model-badge-avatar--card")}
+                        <strong>${escapeHtml(modelLabel)}</strong>
+                    </div>
                 </div>
                 ${defaultBadge}
             </div>
             <div class="chat-profile-card__tags">
+                <span class="chat-profile-card__tag">${escapeHtml(model.name)}</span>
                 <span class="chat-profile-card__tag">${escapeHtml(model.provider_name || getProviderTypeDisplayName(model.provider))}</span>
             </div>
         </article>

@@ -198,21 +198,29 @@
                                 Crea un chat, abre ajustes generales para el modelo y usa el panel del chat para elegir perfil y preparar herramientas sin salir de esta vista.
                             </p>
                             <div class="prompt-grid">
-                                <button class="prompt-card" type="button" data-prompt="Resume este proyecto y dime en qué estado está.">
-                                    <span class="prompt-card__kicker">Proyecto</span>
-                                    <strong>Resumen del proyecto</strong>
+                                <button class="prompt-card" type="button" data-prompt="recomiedame una serie, libro o película">
+                                    <span class="prompt-card__kicker">Recomendaciones</span>
+                                    <strong>Serie, libro o película</strong>
                                 </button>
-                                <button class="prompt-card" type="button" data-prompt="Ayúdame a diseñar una estrategia para refactorizar este módulo sin romper compatibilidad.">
-                                    <span class="prompt-card__kicker">Refactor</span>
-                                    <strong>Plan de refactor</strong>
+                                <button class="prompt-card" type="button" data-prompt="dame un plan divertido por mi ciudad">
+                                    <span class="prompt-card__kicker">Ciudad</span>
+                                    <strong>Plan divertido cerca</strong>
                                 </button>
-                                <button class="prompt-card" type="button" data-prompt="Quiero ideas para mejorar la UX de esta aplicación de chat manteniendo vanilla JS.">
-                                    <span class="prompt-card__kicker">UX</span>
-                                    <strong>Ideas de producto</strong>
+                                <button class="prompt-card" type="button" data-prompt="ayudame a estudiar sobre el siguiente tema:">
+                                    <span class="prompt-card__kicker">Estudio</span>
+                                    <strong>Ayuda para estudiar</strong>
                                 </button>
-                                <button class="prompt-card" type="button" data-prompt="Escribe un primer prompt de sistema para un perfil orientado a programación.">
-                                    <span class="prompt-card__kicker">Perfil</span>
-                                    <strong>Crear perfil</strong>
+                                <button class="prompt-card" type="button" data-prompt="descubre música nueva para mí">
+                                    <span class="prompt-card__kicker">Música</span>
+                                    <strong>Descubrir música</strong>
+                                </button>
+                                <button class="prompt-card" type="button" data-prompt="dame ideas para pasar el rato ahora mismo">
+                                    <span class="prompt-card__kicker">Ahora</span>
+                                    <strong>Ideas para este rato</strong>
+                                </button>
+                                <button class="prompt-card" type="button" data-prompt="recomiéndame algo interesante para aprender">
+                                    <span class="prompt-card__kicker">Aprender</span>
+                                    <strong>Aprender algo</strong>
                                 </button>
                             </div>
                         </div>
@@ -487,14 +495,43 @@
                     <form id="model-form" class="stack-form">
                         <input id="model-id-input" type="hidden">
                         <input id="model-builtin-input" type="hidden" value="false">
+                        <input id="model-icon-data-input" type="hidden" value="">
                         <label class="field field--stacked">
-                            <span>Nombre del modelo</span>
-                            <input id="model-name-input" type="text" placeholder="Ej. llama3.2, gpt-4.1 o gemma-3-4b-it-4bit">
+                            <span>Nombre visible</span>
+                            <input id="model-display-name-input" type="text" placeholder="Ej. gemma-3, GPT-4.1 Main o Llama razonador">
+                        </label>
+                        <label class="field field--stacked">
+                            <span>Nombre técnico</span>
+                            <input id="model-name-input" type="text" placeholder="Ej. mlx-community/gemma-3-4b-it-4bit o gpt-4.1">
+                            <p class="field__help">
+                                Este identificador se usa en las llamadas reales al proveedor.
+                            </p>
                         </label>
                         <label class="field field--stacked">
                             <span>Proveedor</span>
                             <select id="model-provider-select"></select>
                         </label>
+                        <div class="field field--stacked">
+                            <span>Icono del modelo</span>
+                            <div class="model-icon-field">
+                                <div id="model-icon-preview" class="model-icon-preview is-empty" aria-hidden="true">
+                                    <span>AI</span>
+                                </div>
+                                <div class="model-icon-field__controls">
+                                    <input
+                                        id="model-icon-input"
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp,image/gif"
+                                    >
+                                    <p class="field__help">
+                                        Sube un logo ligero para identificar este modelo en las respuestas del chat.
+                                    </p>
+                                    <button id="model-icon-clear-button" class="ghost-button ghost-button--compact" type="button" hidden>
+                                        Quitar icono
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         <label class="checkbox-field">
                             <input id="model-default-input" type="checkbox">
                             <span>Usar este modelo por defecto</span>

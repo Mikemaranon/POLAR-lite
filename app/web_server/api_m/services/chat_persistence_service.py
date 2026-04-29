@@ -14,11 +14,12 @@ class ChatPersistenceService:
         self.persist_request_messages(conversation_id, request_messages)
         self.db.conversations.touch(conversation_id)
 
-    def finalize_response(self, conversation_id, response):
+    def finalize_response(self, conversation_id, response, assistant_message_meta=None):
         assistant_content = ((response.get("message") or {}).get("content") or "").strip()
         if not assistant_content:
             return
 
+        self._apply_assistant_message_meta(response, assistant_message_meta)
         self.persist_assistant_message(conversation_id, response)
         self.db.conversations.touch(conversation_id)
 
@@ -40,8 +41,22 @@ class ChatPersistenceService:
             conversation_id=conversation_id,
             role=assistant_message.get("role", "assistant"),
             content=assistant_message.get("content", ""),
+            model_config_id=assistant_message.get("model_config_id"),
+            model_name=assistant_message.get("model_name", ""),
+            profile_id=assistant_message.get("profile_id"),
+            profile_name=assistant_message.get("profile_name", ""),
             provider_message_id=response.get("message_id"),
         )
+
+    def _apply_assistant_message_meta(self, response, assistant_message_meta=None):
+        if not assistant_message_meta:
+            return
+
+        assistant_message = response.setdefault("message", {})
+        assistant_message["model_config_id"] = assistant_message_meta.get("model_config_id")
+        assistant_message["model_name"] = assistant_message_meta.get("model_name", "")
+        assistant_message["profile_id"] = assistant_message_meta.get("profile_id")
+        assistant_message["profile_name"] = assistant_message_meta.get("profile_name", "")
 
     def _ensure_generated_conversation_title(
         self,

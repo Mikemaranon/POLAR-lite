@@ -54,6 +54,16 @@ export function getSelectedModel() {
 }
 
 
+export function getSelectedModelDisplayName() {
+    const selectedModelConfig = getSelectedModelConfig();
+    if (selectedModelConfig) {
+        return selectedModelConfig.display_name || selectedModelConfig.name || "";
+    }
+
+    return state.activeConversation?.model || "";
+}
+
+
 export function getActualProvider() {
     return getSelectedModelConfig()?.provider
         || state.activeConversation?.provider

@@ -34,8 +34,10 @@ SETTINGS_SCHEMA_STATEMENTS = [
     CREATE TABLE IF NOT EXISTS models (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        display_name TEXT DEFAULT '',
         provider_config_id INTEGER,
         provider TEXT NOT NULL,
+        icon_image TEXT DEFAULT '',
         endpoint TEXT DEFAULT '',
         api_key TEXT DEFAULT '',
         is_default INTEGER DEFAULT 0,

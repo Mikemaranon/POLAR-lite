@@ -149,6 +149,15 @@
     min-width: 0;
 }
 
+.profile-summary-card__identity,
+.chat-profile-card__identity,
+.profile-switch__option-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
 .profile-summary-card__name {
     font-size: 0.96rem;
     line-height: 1.4;
@@ -465,6 +474,32 @@
 .chat-profile-card__heading strong,
 .profile-switch__option-name {
     font-weight: 600;
+}
+
+.model-badge-avatar {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(24, 27, 25, 0.08);
+    color: var(--text-soft);
+    font-size: 0.7rem;
+    font-weight: 700;
+    overflow: hidden;
+}
+
+.model-badge-avatar--card {
+    width: 34px;
+    height: 34px;
+}
+
+.model-badge-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .chat-profile-card__badge {

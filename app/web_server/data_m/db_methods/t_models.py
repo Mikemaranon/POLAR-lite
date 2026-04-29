@@ -2,6 +2,10 @@ import platform
 
 
 class ModelsTable:
+    BUILTIN_MODEL_NAME_UPGRADES = {
+        ("mlx", "gemma-3-4b-it-4bit"): "mlx-community/gemma-3-4b-it-4bit",
+    }
+
     def __init__(self, db):
         self.db = db
 
@@ -9,21 +13,26 @@ class ModelsTable:
         self,
         name,
         provider_config_id,
+        display_name="",
+        icon_image="",
         is_default=False,
         is_builtin=False,
     ):
+        normalized_display_name = self._normalize_display_name(display_name, name)
         provider = self._require_provider(provider_config_id)
         _, model_id = self.db.execute(
             """
             INSERT INTO models (
-                name, provider_config_id, provider, endpoint, api_key, is_default, is_builtin
+                name, display_name, provider_config_id, provider, icon_image, endpoint, api_key, is_default, is_builtin
             )
-            VALUES (?, ?, ?, '', '', ?, ?)
+            VALUES (?, ?, ?, ?, ?, '', '', ?, ?)
             """,
             (
                 name,
+                normalized_display_name,
                 provider_config_id,
                 provider["provider_type"],
+                icon_image,
                 int(is_default),
                 int(is_builtin),
             ),
@@ -38,7 +47,7 @@ class ModelsTable:
     def get(self, model_id):
         _, row = self.db.execute(
             """
-            SELECT m.id, m.name, m.provider_config_id, m.provider, m.is_default, m.is_builtin,
+            SELECT m.id, m.name, m.display_name, m.provider_config_id, m.provider, m.icon_image, m.is_default, m.is_builtin,
                    m.created_at, m.updated_at,
                    p.name, p.provider_type, p.is_builtin
             FROM models AS m
@@ -54,7 +63,7 @@ class ModelsTable:
     def get_default(self):
         _, row = self.db.execute(
             """
-            SELECT m.id, m.name, m.provider_config_id, m.provider, m.is_default, m.is_builtin,
+            SELECT m.id, m.name, m.display_name, m.provider_config_id, m.provider, m.icon_image, m.is_default, m.is_builtin,
                    m.created_at, m.updated_at,
                    p.name, p.provider_type, p.is_builtin
             FROM models AS m
@@ -71,7 +80,7 @@ class ModelsTable:
     def get_by_provider_and_name(self, provider, name):
         _, row = self.db.execute(
             """
-            SELECT m.id, m.name, m.provider_config_id, m.provider, m.is_default, m.is_builtin,
+            SELECT m.id, m.name, m.display_name, m.provider_config_id, m.provider, m.icon_image, m.is_default, m.is_builtin,
                    m.created_at, m.updated_at,
                    p.name, p.provider_type, p.is_builtin
             FROM models AS m
@@ -89,7 +98,7 @@ class ModelsTable:
     def get_by_id_and_provider_type(self, model_id, provider_type):
         _, row = self.db.execute(
             """
-            SELECT m.id, m.name, m.provider_config_id, m.provider, m.is_default, m.is_builtin,
+            SELECT m.id, m.name, m.display_name, m.provider_config_id, m.provider, m.icon_image, m.is_default, m.is_builtin,
                    m.created_at, m.updated_at,
                    p.name, p.provider_type, p.is_builtin
             FROM models AS m
@@ -106,7 +115,7 @@ class ModelsTable:
     def all(self):
         _, rows = self.db.execute(
             """
-            SELECT m.id, m.name, m.provider_config_id, m.provider, m.is_default, m.is_builtin,
+            SELECT m.id, m.name, m.display_name, m.provider_config_id, m.provider, m.icon_image, m.is_default, m.is_builtin,
                    m.created_at, m.updated_at,
                    p.name, p.provider_type, p.is_builtin
             FROM models AS m
@@ -123,16 +132,21 @@ class ModelsTable:
         model_id,
         name,
         provider_config_id,
+        display_name="",
+        icon_image="",
         is_default=False,
         is_builtin=False,
     ):
+        normalized_display_name = self._normalize_display_name(display_name, name)
         provider = self._require_provider(provider_config_id)
         self.db.execute(
             """
             UPDATE models
             SET name = ?,
+                display_name = ?,
                 provider_config_id = ?,
                 provider = ?,
+                icon_image = ?,
                 is_default = ?,
                 is_builtin = ?,
                 updated_at = CURRENT_TIMESTAMP
@@ -140,8 +154,10 @@ class ModelsTable:
             """,
             (
                 name,
+                normalized_display_name,
                 provider_config_id,
                 provider["provider_type"],
+                icon_image,
                 int(is_default),
                 int(is_builtin),
                 model_id,
@@ -239,6 +255,9 @@ class ModelsTable:
         )
 
     def ensure_seed_models(self):
+        self._upgrade_builtin_model_names()
+        self._backfill_display_names()
+        self._sync_message_model_labels()
         existing_models = self.all()
         if existing_models:
             if not self.get_default():
@@ -253,7 +272,8 @@ class ModelsTable:
         if is_apple and mlx_provider:
             created_ids.append(
                 self.create(
-                    name="gemma-3-4b-it-4bit",
+                    name="mlx-community/gemma-3-4b-it-4bit",
+                    display_name="gemma-3",
                     provider_config_id=mlx_provider["id"],
                     is_default=True,
                     is_builtin=True,
@@ -264,6 +284,7 @@ class ModelsTable:
             created_ids.append(
                 self.create(
                     name="llama3.2",
+                    display_name="llama3.2",
                     provider_config_id=ollama_provider["id"],
                     is_default=not is_apple,
                     is_builtin=True,
@@ -272,6 +293,132 @@ class ModelsTable:
 
         if not self.get_default() and created_ids:
             self.set_default(created_ids[0])
+
+    def _upgrade_builtin_model_names(self):
+        for (provider, old_name), new_name in self.BUILTIN_MODEL_NAME_UPGRADES.items():
+            old_model = self.get_by_provider_and_name(provider, old_name)
+            if not old_model:
+                continue
+
+            canonical_model = self.get_by_provider_and_name(provider, new_name)
+            if canonical_model and canonical_model["id"] != old_model["id"]:
+                self.db.execute(
+                    """
+                    UPDATE conversations
+                    SET model_config_id = ?,
+                        model = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE model_config_id = ?
+                    """,
+                    (canonical_model["id"], new_name, old_model["id"]),
+                )
+                self.db.execute(
+                    """
+                    UPDATE messages
+                    SET model_config_id = ?,
+                        model_name = ?
+                    WHERE model_config_id = ?
+                    """,
+                    (canonical_model["id"], new_name, old_model["id"]),
+                )
+                self.delete(old_model["id"])
+            else:
+                self.db.execute(
+                    """
+                    UPDATE models
+                    SET name = ?,
+                        display_name = CASE
+                            WHEN COALESCE(TRIM(display_name), '') = '' OR display_name = ?
+                                THEN ?
+                            ELSE display_name
+                        END,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (new_name, old_name, self._default_display_name_for_model(provider, new_name), old_model["id"]),
+                )
+
+            self.db.execute(
+                """
+                UPDATE conversations
+                SET model = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE provider = ? AND model = ?
+                """,
+                (new_name, provider, old_name),
+            )
+            self.db.execute(
+                """
+                UPDATE messages
+                SET model_name = ?
+                WHERE model_name = ?
+                """,
+                (new_name, old_name),
+            )
+
+    def _backfill_display_names(self):
+        self.db.execute(
+            """
+            UPDATE models
+            SET display_name = name,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE COALESCE(TRIM(display_name), '') = ''
+            """
+        )
+
+        for (provider, technical_name), preferred_display_name in self._builtin_display_name_upgrades().items():
+            self.db.execute(
+                """
+                UPDATE models
+                SET display_name = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE provider = ?
+                  AND name = ?
+                  AND (
+                    COALESCE(TRIM(display_name), '') = ''
+                    OR display_name = name
+                  )
+                """,
+                (preferred_display_name, provider, technical_name),
+            )
+
+    def _builtin_display_name_upgrades(self):
+        return {
+            ("mlx", "mlx-community/gemma-3-4b-it-4bit"): "gemma-3",
+        }
+
+    def _default_display_name_for_model(self, provider, technical_name):
+        return self._builtin_display_name_upgrades().get(
+            (provider, technical_name),
+            technical_name,
+        )
+
+    def _sync_message_model_labels(self):
+        self.db.execute(
+            """
+            UPDATE messages
+            SET model_name = (
+                SELECT COALESCE(NULLIF(TRIM(models.display_name), ''), models.name)
+                FROM models
+                WHERE models.id = messages.model_config_id
+            )
+            WHERE model_config_id IS NOT NULL
+              AND (
+                COALESCE(TRIM(model_name), '') = ''
+                OR model_name = (
+                    SELECT models.name
+                    FROM models
+                    WHERE models.id = messages.model_config_id
+                )
+              )
+            """
+        )
+
+    def _normalize_display_name(self, display_name, technical_name):
+        normalized = str(display_name or "").strip()
+        if normalized:
+            return normalized
+        return str(technical_name or "").strip()
 
     def _require_provider(self, provider_config_id):
         _, row = self.db.execute(
@@ -307,19 +454,21 @@ class ModelsTable:
         if not row:
             return None
 
-        provider_name = row[8] or row[3]
-        provider_type = row[9] or row[3]
+        provider_name = row[10] or row[4]
+        provider_type = row[11] or row[4]
         return {
             "id": row[0],
             "name": row[1],
-            "provider_id": row[2],
+            "display_name": row[2] or row[1],
+            "provider_id": row[3],
             "provider": provider_type,
+            "icon_image": row[5] or "",
             "provider_name": provider_name,
             "provider_type": provider_type,
-            "is_default": bool(row[4]),
-            "is_builtin": bool(row[5]),
-            "created_at": row[6],
-            "updated_at": row[7],
+            "is_default": bool(row[6]),
+            "is_builtin": bool(row[7]),
+            "created_at": row[8],
+            "updated_at": row[9],
         }
 
     def _serialize_provider(self, row):

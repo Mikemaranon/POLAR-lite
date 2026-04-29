@@ -1,7 +1,6 @@
 import { configureAppCallbacks, renderApp } from "./app-runtime.js";
 import { autoResizeComposer } from "./composer-ui.js";
 import {
-    createConversationFromUI,
     disableMessagesAutoScroll,
     ensureActiveConversation,
     handleComposerKeyDown,
@@ -9,6 +8,7 @@ import {
     handleConversationDelete,
     handleConversationSelect,
     handleSendButtonClick,
+    openNewConversationWorkspace,
     registerChatCallbacks,
     syncMessagesAutoScrollState,
 } from "./controllers/chat-controller.js";
@@ -29,6 +29,8 @@ import {
 } from "./controllers/layout-controller.js";
 import {
     handleActiveChatModelEdit,
+    handleModelIconClear,
+    handleModelIconInputChange,
     handleModelSearchInput,
     handleModelSubmit,
     openCreateModelModal,
@@ -139,8 +141,7 @@ export function bindUI() {
     elements.sendButton?.addEventListener("click", handleSendButtonClick);
     elements.composerInput.addEventListener("keydown", handleComposerKeyDown);
     elements.composerInput.addEventListener("input", autoResizeComposer);
-    elements.newChatButton.addEventListener("click", () => createConversationFromUI({
-        handleConversationSelect: onConversationSelect,
+    elements.newChatButton.addEventListener("click", () => openNewConversationWorkspace({
         closeSidebarOnMobile,
     }));
     elements.newProjectButton.addEventListener("click", () => handleNewProject({ closeSidebarOnMobile }));
@@ -169,6 +170,8 @@ export function bindUI() {
     elements.closeProjectCustomizeButton?.addEventListener("click", closeProjectCustomizeModal);
     elements.closeDocumentsButton?.addEventListener("click", closeDocumentsModal);
     elements.modelForm?.addEventListener("submit", handleModelSubmit);
+    elements.modelIconInput?.addEventListener("change", handleModelIconInputChange);
+    elements.modelIconClearButton?.addEventListener("click", handleModelIconClear);
     elements.providerForm?.addEventListener("submit", handleProviderSubmit);
     elements.profileForm.addEventListener("submit", handleProfileSubmit);
     elements.projectCustomizeForm?.addEventListener("submit", handleProjectCustomizeSubmit);

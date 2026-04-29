@@ -25,6 +25,13 @@
     border-radius: var(--radius-pill);
 }
 
+.message__avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .message--assistant .message__avatar {
     background: var(--accent);
 }
@@ -43,8 +50,7 @@
 .message--assistant .message__card {
     flex: 1 1 auto;
     background: transparent;
-    padding: 16px 0;
-    padding-right: 20px;
+    padding: 0 20px 16px 0;
 }
 
 .message--user .message__card {
@@ -275,11 +281,23 @@
 }
 
 .message__meta {
-    margin-bottom: 6px;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--text-soft);
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    color: rgba(30, 31, 25, 0.58);
+}
+
+.message--assistant .message__meta {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.message__meta-separator {
+    margin: 0 18px;
+    color: rgba(30, 31, 25, 0.34);
 }
 
 .typing-indicator {

@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from tests.test_support import IsolatedDatabaseTestCase
 
 from config_m import ConfigManager
@@ -42,6 +44,7 @@ class DBManagerTests(IsolatedDatabaseTestCase):
     def test_projects_conversations_and_messages_roundtrip(self):
         db = DBManager()
         profile = db.profiles.get_default()
+        default_model = db.models.get_default()
         project_id = db.projects.create("Workspace", "Primary project")
         conversation_id = db.conversations.create(
             title="Kickoff",
@@ -60,6 +63,10 @@ class DBManagerTests(IsolatedDatabaseTestCase):
             conversation_id=conversation_id,
             role="assistant",
             content="Que tal",
+            model_config_id=default_model["id"] if default_model else None,
+            model_name=default_model["name"] if default_model else "gemma-3",
+            profile_id=profile["id"],
+            profile_name=profile["name"],
         )
 
         project = db.projects.get(project_id)
@@ -71,6 +78,11 @@ class DBManagerTests(IsolatedDatabaseTestCase):
         self.assertEqual(conversation["profile_id"], profile["id"])
         self.assertEqual([message["id"] for message in messages], [first_message_id, second_message_id])
         self.assertEqual([message["position"] for message in messages], [0, 1])
+        self.assertEqual(messages[1]["profile_name"], profile["name"])
+        self.assertEqual(
+            messages[1]["model_name"],
+            default_model["display_name"] if default_model else "gemma-3",
+        )
 
         db.conversations.rename(conversation_id, "Workspace kickoff")
         renamed_conversation = db.conversations.get(conversation_id)
@@ -167,6 +179,7 @@ class DBManagerTests(IsolatedDatabaseTestCase):
         model_id = db.models.create(
             name="qwen3",
             provider_config_id=ollama_provider["id"],
+            display_name="Qwen 3",
         )
 
         model = db.models.get(model_id)
@@ -174,3 +187,72 @@ class DBManagerTests(IsolatedDatabaseTestCase):
         self.assertEqual(model["provider_id"], ollama_provider["id"])
         self.assertEqual(model["provider_name"], ollama_provider["name"])
         self.assertEqual(model["provider_type"], "ollama")
+        self.assertEqual(model["icon_image"], "")
+        self.assertEqual(model["display_name"], "Qwen 3")
+
+    def test_seeded_mlx_model_uses_canonical_repo_id_on_apple(self):
+        with patch("data_m.db_methods.t_models.platform.system", return_value="Darwin"):
+            db = DBManager()
+
+        default_model = db.models.get_default()
+
+        self.assertIsNotNone(default_model)
+        self.assertEqual(default_model["provider"], "mlx")
+        self.assertEqual(default_model["name"], "mlx-community/gemma-3-4b-it-4bit")
+        self.assertEqual(default_model["display_name"], "gemma-3")
+
+    def test_existing_mlx_short_name_is_upgraded_on_boot(self):
+        db = DBManager()
+        mlx_provider = db.providers.get_first_by_type("mlx")
+        profile = db.profiles.get_default()
+        model_id = db.models.create(
+            name="gemma-3-4b-it-4bit",
+            provider_config_id=mlx_provider["id"],
+        )
+        conversation_id = db.conversations.create(
+            title="Upgrade me",
+            profile_id=profile["id"],
+            model_config_id=model_id,
+            provider="mlx",
+            model="gemma-3-4b-it-4bit",
+        )
+        db.messages.create(
+            conversation_id=conversation_id,
+            role="assistant",
+            content="Hola",
+            model_config_id=model_id,
+            model_name="gemma-3-4b-it-4bit",
+            profile_id=profile["id"],
+            profile_name=profile["name"],
+        )
+
+        db.models.ensure_seed_models()
+
+        model = db.models.get_by_provider_and_name(
+            "mlx",
+            "mlx-community/gemma-3-4b-it-4bit",
+        )
+        conversation = db.conversations.get(conversation_id)
+        messages = db.messages.for_conversation(conversation_id)
+
+        self.assertIsNotNone(model)
+        self.assertEqual(model["name"], "mlx-community/gemma-3-4b-it-4bit")
+        self.assertEqual(model["display_name"], "gemma-3")
+        self.assertEqual(conversation["model_config_id"], model["id"])
+        self.assertEqual(conversation["model"], "mlx-community/gemma-3-4b-it-4bit")
+        self.assertEqual(messages[0]["model_name"], "gemma-3")
+        self.assertEqual(messages[0]["model_config_id"], model["id"])
+
+    def test_models_default_display_name_to_technical_name(self):
+        db = DBManager()
+        ollama_provider = db.providers.get_first_by_type("ollama")
+
+        model_id = db.models.create(
+            name="llama3.2:latest",
+            provider_config_id=ollama_provider["id"],
+        )
+
+        model = db.models.get(model_id)
+
+        self.assertEqual(model["name"], "llama3.2:latest")
+        self.assertEqual(model["display_name"], "llama3.2:latest")

@@ -38,6 +38,16 @@ export function getModelConfigById(modelConfigId) {
 }
 
 
+export function getModelDisplayNameById(modelConfigId) {
+    const model = getModelConfigById(modelConfigId);
+    if (!model) {
+        return "";
+    }
+
+    return model.display_name || model.name || "";
+}
+
+
 export function getActiveProject() {
     return state.projects.find((project) => project.id === state.activeProjectId) || null;
 }

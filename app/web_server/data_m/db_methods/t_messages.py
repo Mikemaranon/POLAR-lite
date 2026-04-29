@@ -8,19 +8,35 @@ class MessagesTable:
         role,
         content,
         position=None,
+        model_config_id=None,
+        model_name="",
+        profile_id=None,
+        profile_name="",
         provider_message_id=None,
     ):
         if position is None:
             position = self._next_position(conversation_id)
+        model_name = self._normalize_model_name(model_config_id, model_name)
 
         _, message_id = self.db.execute(
             """
             INSERT INTO messages (
-                conversation_id, role, content, position, provider_message_id
+                conversation_id, role, content, position, model_config_id, model_name,
+                profile_id, profile_name, provider_message_id
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (conversation_id, role, content, position, provider_message_id),
+            (
+                conversation_id,
+                role,
+                content,
+                position,
+                model_config_id,
+                model_name,
+                profile_id,
+                profile_name,
+                provider_message_id,
+            ),
             lastrowid=True
         )
         return message_id
@@ -29,6 +45,7 @@ class MessagesTable:
         _, row = self.db.execute(
             """
             SELECT id, conversation_id, role, content, position,
+                   model_config_id, model_name, profile_id, profile_name,
                    provider_message_id, created_at
             FROM messages
             WHERE id = ?
@@ -42,6 +59,7 @@ class MessagesTable:
         _, rows = self.db.execute(
             """
             SELECT id, conversation_id, role, content, position,
+                   model_config_id, model_name, profile_id, profile_name,
                    provider_message_id, created_at
             FROM messages
             WHERE conversation_id = ?
@@ -76,6 +94,30 @@ class MessagesTable:
         )
         return row[0] if row else 0
 
+    def _normalize_model_name(self, model_config_id, model_name):
+        normalized = str(model_name or "").strip()
+        if not model_config_id:
+            return normalized
+
+        _, row = self.db.execute(
+            """
+            SELECT name, display_name
+            FROM models
+            WHERE id = ?
+            """,
+            (model_config_id,),
+            fetchone=True,
+        )
+        if not row:
+            return normalized
+
+        technical_name = row[0] or ""
+        display_name = row[1] or technical_name
+        if not normalized or normalized == technical_name:
+            return display_name
+
+        return normalized
+
     def _serialize(self, row):
         if not row:
             return None
@@ -86,6 +128,10 @@ class MessagesTable:
             "role": row[2],
             "content": row[3],
             "position": row[4],
-            "provider_message_id": row[5],
-            "created_at": row[6],
+            "model_config_id": row[5],
+            "model_name": row[6] or "",
+            "profile_id": row[7],
+            "profile_name": row[8] or "",
+            "provider_message_id": row[9],
+            "created_at": row[10],
         }

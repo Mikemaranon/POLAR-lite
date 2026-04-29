@@ -37,9 +37,15 @@ CHAT_SCHEMA_STATEMENTS = [
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         position INTEGER NOT NULL,
+        model_config_id INTEGER,
+        model_name TEXT DEFAULT '',
+        profile_id INTEGER,
+        profile_name TEXT DEFAULT '',
         provider_message_id TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+        FOREIGN KEY (model_config_id) REFERENCES models(id) ON DELETE SET NULL,
+        FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL
     )
     """,
 ]

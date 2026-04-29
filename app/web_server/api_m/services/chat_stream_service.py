@@ -40,6 +40,7 @@ class ChatStreamService:
         model,
         generation_settings,
         request_id,
+        assistant_message_meta,
     ):
         cancel_event = self._register_stream(request_id)
 
@@ -53,6 +54,7 @@ class ChatStreamService:
                         "provider": provider,
                         "model": model,
                         "request_id": request_id,
+                        "message_meta": assistant_message_meta,
                     },
                 )
 
@@ -106,12 +108,14 @@ class ChatStreamService:
                     self.persistence_service.finalize_response(
                         conversation_id,
                         final_response,
+                        assistant_message_meta,
                     )
 
                 payload = {
                     "response": final_response,
                     "cancelled": was_cancelled,
                     "request_id": request_id,
+                    "message_meta": assistant_message_meta,
                 }
                 if conversation_id:
                     payload["conversation"] = self.db.conversations.get(conversation_id)

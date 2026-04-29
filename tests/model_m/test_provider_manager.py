@@ -156,6 +156,56 @@ class ProviderManagerTests(unittest.TestCase):
                 ["model-a", "model-b"],
             )
 
+    def test_mlx_provider_resolves_cached_model_by_basename(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_root = Path(temp_dir) / "hf-cache"
+            snapshot_dir = (
+                cache_root
+                / "models--mlx-community--gemma-3-4b-it-4bit"
+                / "snapshots"
+                / "snapshot-123"
+            )
+            snapshot_dir.mkdir(parents=True)
+            os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_root)
+
+            captured = {}
+
+            class FakeTokenizer:
+                def apply_chat_template(self, messages, add_generation_prompt=True, tokenize=False):
+                    return "PROMPT"
+
+            def fake_load(model_name):
+                captured["loaded_model"] = model_name
+                return "MODEL", FakeTokenizer()
+
+            class FakeResponse:
+                def __init__(self, text, generation_tokens, finish_reason=None):
+                    self.text = text
+                    self.prompt_tokens = 12
+                    self.prompt_tps = 45.0
+                    self.generation_tokens = generation_tokens
+                    self.generation_tps = 18.0
+                    self.peak_memory = 2.5
+                    self.finish_reason = finish_reason
+
+            def fake_make_sampler(temp=0.0, top_p=1.0):
+                return "SAMPLER"
+
+            def fake_stream_generate(model, tokenizer, prompt, max_tokens=None, sampler=None, verbose=None):
+                yield FakeResponse("Respuesta", 1, finish_reason="stop")
+
+            provider = MLXProvider(ConfigManager().get_provider_config())
+            provider.is_available = lambda: True
+            provider._import_mlx_runtime = lambda: (fake_load, fake_stream_generate, fake_make_sampler)
+
+            response = provider.chat(
+                [{"role": "user", "content": "Hola"}],
+                "gemma-3-4b-it-4bit",
+            )
+
+            self.assertEqual(captured["loaded_model"], str(snapshot_dir))
+            self.assertEqual(response["message"]["content"], "Respuesta")
+
     def test_openai_provider_lists_models_via_http(self):
         os.environ["OPENAI_API_KEY"] = "test-key"
         manager = ProviderManager(ConfigManager())
@@ -610,3 +660,13 @@ class ProviderManagerCacheFallbackTests(IsolatedDatabaseTestCase):
         self.assertEqual(catalog["models"][0]["id"], "gemma-3")
         self.assertEqual(catalog["error"]["code"], "provider_unavailable")
         self.assertIn("mlx_lm", catalog["error"]["message"])
+
+    def test_mlx_provider_surfaces_canonical_repo_hint_for_known_alias(self):
+        provider = MLXProvider(ConfigManager().get_provider_config())
+
+        hint = provider._build_load_error_hint(
+            "gemma-3-4b-it-4bit",
+            RuntimeError("401 Client Error. Repository Not Found"),
+        )
+
+        self.assertIn("mlx-community/gemma-3-4b-it-4bit", hint)

@@ -9,6 +9,9 @@ from .base_provider import ModelProvider
 
 class MLXProvider(ModelProvider):
     provider_name = "mlx"
+    KNOWN_MODEL_ALIASES = {
+        "gemma-3-4b-it-4bit": "mlx-community/gemma-3-4b-it-4bit",
+    }
 
     def __init__(self, config, db_manager=None, http_client=None, settings_resolver=None):
         super().__init__(
@@ -196,8 +199,12 @@ class MLXProvider(ModelProvider):
                 try:
                     self._loaded_models[cache_key] = load_fn(cache_key)
                 except Exception as error:
+                    message = f"Could not load MLX model '{cache_key}': {error}"
+                    hint = self._build_load_error_hint(cache_key, error)
+                    if hint:
+                        message = f"{message} {hint}"
                     raise ModelOperationError(
-                        f"Could not load MLX model '{cache_key}': {error}",
+                        message,
                         provider=self.provider_name,
                     ) from error
 
@@ -310,14 +317,54 @@ class MLXProvider(ModelProvider):
             return direct_path
 
         configured_models = {path.name: path for path in self._get_configured_model_paths()}
-        if model in configured_models:
-            return configured_models[model]
-
         cached_models = self._get_cached_huggingface_models()
-        if model in cached_models:
-            return cached_models[model]
+        for candidate in self._candidate_model_ids(model):
+            if candidate in configured_models:
+                return configured_models[candidate]
+            if candidate in cached_models:
+                return cached_models[candidate]
+
+        cached_basename_match = self._match_cached_model_basename(model, cached_models)
+        if cached_basename_match:
+            return cached_basename_match
 
         return model
+
+    def _candidate_model_ids(self, model):
+        candidates = [model]
+        alias = self.KNOWN_MODEL_ALIASES.get(model)
+        if alias and alias not in candidates:
+            candidates.append(alias)
+        return candidates
+
+    def _match_cached_model_basename(self, model, cached_models):
+        matches = [
+            snapshot_path
+            for repo_id, snapshot_path in cached_models.items()
+            if repo_id.split("/")[-1] == model
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        return None
+
+    def _build_load_error_hint(self, model, error):
+        error_message = str(error).lower()
+        if "repository not found" not in error_message and "401 client error" not in error_message:
+            return ""
+
+        alias = self.KNOWN_MODEL_ALIASES.get(model)
+        if alias:
+            return (
+                f"Try the canonical repo id `{alias}` or point `MLX_MODEL_PATHS` to a local model folder."
+            )
+
+        if "/" not in model and not Path(model).expanduser().exists():
+            return (
+                "Use a full Hugging Face repo id such as `mlx-community/<model>` "
+                "or point `MLX_MODEL_PATHS` to a local model folder."
+            )
+
+        return ""
 
     def _get_configured_model_paths(self):
         model_paths = []

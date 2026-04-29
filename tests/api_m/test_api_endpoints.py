@@ -7,6 +7,8 @@ from api_m.domains.chat_api import ChatAPI
 
 
 class ApiEndpointTests(ApiTestCase):
+    MODEL_ICON_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0XcAAAAASUVORK5CYII="
+
     def test_models_endpoint_returns_configured_models(self):
         response = self.client.get("/api/models", headers=self.auth_headers)
         payload = response.get_json()
@@ -16,6 +18,7 @@ class ApiEndpointTests(ApiTestCase):
         self.assertGreaterEqual(len(payload["models"]), 1)
         self.assertIn(payload["models"][0]["provider"], {"mlx", "ollama"})
         self.assertIn("name", payload["models"][0])
+        self.assertIn("display_name", payload["models"][0])
 
     def test_projects_profiles_and_conversations_can_be_created(self):
         provider_response = self.client.post(
@@ -52,7 +55,9 @@ class ApiEndpointTests(ApiTestCase):
             "/api/models",
             json={
                 "name": "gpt-4.1",
+                "display_name": "GPT-4.1 Main",
                 "provider_id": provider["id"],
+                "icon_image": self.MODEL_ICON_DATA_URL,
                 "is_default": True,
             },
             headers=self.auth_headers,
@@ -80,6 +85,54 @@ class ApiEndpointTests(ApiTestCase):
         self.assertEqual(conversation["profile_id"], profile["id"])
         self.assertEqual(conversation["provider"], "openai")
         self.assertEqual(conversation["model_config_id"], model["id"])
+        self.assertEqual(model["icon_image"], self.MODEL_ICON_DATA_URL)
+        self.assertEqual(model["name"], "gpt-4.1")
+        self.assertEqual(model["display_name"], "GPT-4.1 Main")
+
+    def test_updating_model_refreshes_visible_message_label(self):
+        provider = self.db.providers.get_first_by_type("ollama")
+        profile = self.db.profiles.get_default()
+        model_id = self.db.models.create(
+            name="qwen3",
+            display_name="Qwen 3",
+            provider_config_id=provider["id"],
+        )
+        conversation_id = self.db.conversations.create(
+            title="Model rename",
+            profile_id=profile["id"],
+            model_config_id=model_id,
+            provider="ollama",
+            model="qwen3",
+        )
+        self.db.messages.create(
+            conversation_id=conversation_id,
+            role="assistant",
+            content="Hola",
+            model_config_id=model_id,
+            model_name="Qwen 3",
+            profile_id=profile["id"],
+            profile_name=profile["name"],
+        )
+
+        response = self.client.patch(
+            "/api/models",
+            json={
+                "id": model_id,
+                "name": "qwen3",
+                "display_name": "Qwen Work",
+                "provider_id": provider["id"],
+                "icon_image": "",
+                "is_default": False,
+            },
+            headers=self.auth_headers,
+        )
+        payload = response.get_json()
+        stored_messages = self.db.messages.for_conversation(conversation_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["model"]["name"], "qwen3")
+        self.assertEqual(payload["model"]["display_name"], "Qwen Work")
+        self.assertEqual(stored_messages[0]["model_name"], "Qwen Work")
 
     def test_chat_endpoint_applies_profile_and_persists_turn(self):
         profile_id = self.db.profiles.create(
@@ -138,8 +191,12 @@ class ApiEndpointTests(ApiTestCase):
         self.assertEqual(captured["settings"]["temperature"], 0.4)
         self.assertEqual(captured["settings"]["max_tokens"], 300)
         self.assertEqual(payload["response"]["message"]["content"], "Aqui tienes ideas")
+        self.assertEqual(payload["response"]["message"]["model_name"], "gpt-4.1")
+        self.assertEqual(payload["response"]["message"]["profile_name"], "Creative")
         self.assertEqual(len(stored_messages), 2)
         self.assertEqual(stored_messages[0]["content"], "Dame ideas")
+        self.assertEqual(stored_messages[1]["model_name"], "gpt-4.1")
+        self.assertEqual(stored_messages[1]["profile_name"], "Creative")
         self.assertEqual(stored_messages[1]["provider_message_id"], "resp-1")
 
     def test_chat_endpoint_applies_project_context_and_documents(self):
