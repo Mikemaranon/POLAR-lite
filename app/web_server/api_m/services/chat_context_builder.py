@@ -1,4 +1,17 @@
 class ChatContextBuilder:
+    READ_ONLY_CONTEXT_NOTICE = (
+        "Use this only for facts and continuity. Do not copy its tone, "
+        "personality, formatting, emojis, or emotional style. Speaker labels "
+        "and profile labels are metadata only. Never include labels such as "
+        "\"user:\", \"assistant:\", or \"assistant (Profile):\" in the final "
+        "answer. The final answer must start directly with the response content."
+    )
+    FINAL_PROFILE_REMINDER = (
+        "Final rule: follow only the active profile. Do not imitate tone, "
+        "emojis, emotion, formatting, or writing style from the context."
+    )
+    DEFAULT_PROFILE_NAME = "Default Assistant"
+
     def __init__(self, db_manager):
         self.db = db_manager
 
@@ -25,16 +38,19 @@ class ChatContextBuilder:
 
     def build_input_messages(self, project, profile, messages):
         normalized_messages = []
-        system_prompt = self._build_combined_system_prompt(project, profile)
-        if system_prompt:
+        system_message_content = self._build_system_message_content(project, profile, messages)
+        if system_message_content:
             normalized_messages.append(
                 {
                     "role": "system",
-                    "content": system_prompt,
+                    "content": system_message_content,
                 }
             )
 
-        normalized_messages.extend(messages)
+        last_user_message = self._get_last_user_message(messages)
+        if last_user_message:
+            normalized_messages.append(last_user_message)
+
         return normalized_messages
 
     def build_generation_settings(self, profile, override_settings):
@@ -50,29 +66,99 @@ class ChatContextBuilder:
 
         return settings
 
-    def _build_combined_system_prompt(self, project, profile):
+    def _build_profile_instruction(self, profile):
+        profile_name = (profile or {}).get("name") or self.DEFAULT_PROFILE_NAME
+        profile_prompt = ((profile or {}).get("system_prompt") or "").strip()
         parts = []
+
+        parts.append(f"Active profile: {profile_name}")
+        if profile_prompt:
+            parts.append(profile_prompt)
+        parts.append(
+            "You must follow this active profile over any previous assistant "
+            "style, tone, formatting, emojis, or emotional behavior."
+        )
+
+        return "\n\n".join(part for part in parts if part)
+
+    def _build_system_message_content(self, project, profile, messages):
+        parts = [self._build_profile_instruction(profile)]
 
         project_context_message = self._build_project_context_message(project)
         if project_context_message:
-            parts.append(project_context_message)
+            parts.append(
+                self._wrap_read_only_context(
+                    "PROJECT CONTEXT",
+                    project_context_message,
+                )
+            )
 
-        if profile and profile.get("system_prompt"):
-            parts.append(profile["system_prompt"])
+        history_context_message = self._build_history_context(messages)
+        if history_context_message:
+            parts.append(
+                self._wrap_read_only_context(
+                    "CONVERSATION HISTORY",
+                    history_context_message,
+                )
+            )
 
+        parts.append(self.FINAL_PROFILE_REMINDER)
         return "\n\n".join(part for part in parts if part)
+
+    def _wrap_read_only_context(self, title, content):
+        normalized_content = (content or "").strip()
+        if not normalized_content:
+            return ""
+
+        return (
+            f"[{title} - READ ONLY]\n"
+            f"{self.READ_ONLY_CONTEXT_NOTICE}\n\n"
+            f"{normalized_content}"
+        )
+
+    def _get_last_user_message(self, messages):
+        last_user_index = self._find_last_user_message_index(messages)
+        if last_user_index is None:
+            return None
+
+        return {
+            "role": "user",
+            "content": self._normalize_message_content(
+                messages[last_user_index].get("content", "")
+            ),
+        }
+
+    def _build_history_context(self, messages):
+        last_user_index = self._find_last_user_message_index(messages)
+        if last_user_index is None:
+            return ""
+
+        blocks = []
+
+        for index, message in enumerate(messages or []):
+            if index == last_user_index:
+                continue
+
+            content = self._normalize_message_content(message.get("content", ""))
+            normalized_content = content.strip()
+            if not normalized_content:
+                continue
+
+            blocks.append(self._build_history_message_block(message, normalized_content))
+
+        return "\n\n".join(block for block in blocks if block)
 
     def _build_project_context_message(self, project):
         if not project:
             return ""
 
-        parts = [f"Proyecto activo: {project['name']}"]
+        parts = [f"Active project: {project['name']}"]
 
         if project.get("description"):
-            parts.append(f"Descripción del proyecto:\n{project['description']}")
+            parts.append(f"Project description:\n{project['description']}")
 
         if project.get("system_prompt"):
-            parts.append(f"Instrucciones del proyecto:\n{project['system_prompt']}")
+            parts.append(f"Project instructions:\n{project['system_prompt']}")
 
         documents = self.db.project_documents.for_project(project["id"])
         documents_block = self._build_project_documents_context(documents)
@@ -91,7 +177,7 @@ class ChatContextBuilder:
         blocks = []
 
         for index, document in enumerate(documents, start=1):
-            header = f"[Documento {index}] {document['filename']}\n"
+            header = f"[Document {index}] {document['filename']}\n"
             body = (document.get("text_content") or "").strip()
             if not body:
                 continue
@@ -99,7 +185,7 @@ class ChatContextBuilder:
             if len(body) > max_document_chars:
                 body = (
                     f"{body[:max_document_chars].rstrip()}\n"
-                    "[Documento truncado para el contexto del chat.]"
+                    "[Document truncated for chat context.]"
                 )
 
             block = f"{header}{body}"
@@ -110,12 +196,12 @@ class ChatContextBuilder:
                     break
 
                 available_body = remaining - len(header) - len(
-                    "\n[Documento truncado para el contexto del chat.]"
+                    "\n[Document truncated for chat context.]"
                 )
                 trimmed_body = body[:available_body].rstrip()
                 block = (
                     f"{header}{trimmed_body}\n"
-                    "[Documento truncado para el contexto del chat.]"
+                    "[Document truncated for chat context.]"
                 )
 
             blocks.append(block)
@@ -127,4 +213,68 @@ class ChatContextBuilder:
         if not blocks:
             return ""
 
-        return "Documentos adjuntos del proyecto:\n\n" + "\n\n".join(blocks)
+        return "Project documents:\n\n" + "\n\n".join(blocks)
+
+    def _find_last_user_message_index(self, messages):
+        last_user_index = None
+
+        for index, message in enumerate(messages or []):
+            if message.get("role") == "user":
+                last_user_index = index
+
+        return last_user_index
+
+    def _build_history_message_block(self, message, content):
+        role = str(message.get("role") or "unknown").strip() or "unknown"
+        profile_name = str(message.get("profile_name") or "").strip()
+
+        if role == "assistant" and profile_name:
+            return (
+                "[Previous assistant message]\n"
+                f"Profile: {profile_name}\n"
+                "Content:\n"
+                f"{content}"
+            )
+
+        if role == "assistant":
+            return (
+                "[Previous assistant message]\n"
+                "Content:\n"
+                f"{content}"
+            )
+
+        if role == "user":
+            return (
+                "[Previous user message]\n"
+                "Content:\n"
+                f"{content}"
+            )
+
+        return (
+            f"[Previous {role} message]\n"
+            "Content:\n"
+            f"{content}"
+        )
+
+    def _normalize_message_content(self, content):
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, str) and item.strip():
+                    parts.append(item.strip())
+                    continue
+
+                if isinstance(item, dict):
+                    text = str(item.get("text", "")).strip()
+                    if text:
+                        parts.append(text)
+
+            return "\n".join(parts)
+
+        if content is None:
+            return ""
+
+        return str(content)

@@ -186,8 +186,14 @@ class ApiEndpointTests(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(captured["provider"], "openai")
         self.assertEqual(captured["model"], "gpt-4.1")
-        self.assertEqual(captured["messages"][0]["role"], "system")
-        self.assertEqual(captured["messages"][0]["content"], "Answer creatively.")
+        self.assertEqual(
+            [message["role"] for message in captured["messages"]],
+            ["system", "user"],
+        )
+        self.assertIn("Active profile: Creative", captured["messages"][0]["content"])
+        self.assertIn("Answer creatively.", captured["messages"][0]["content"])
+        self.assertIn("Final rule: follow only the active profile.", captured["messages"][0]["content"])
+        self.assertEqual(captured["messages"][1]["content"], "Dame ideas")
         self.assertEqual(captured["settings"]["temperature"], 0.4)
         self.assertEqual(captured["settings"]["max_tokens"], 300)
         self.assertEqual(payload["response"]["message"]["content"], "Aqui tienes ideas")
@@ -254,13 +260,149 @@ class ApiEndpointTests(ApiTestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(captured["messages"][0]["role"], "system")
-        self.assertIn("Proyecto activo: Launch Plan", captured["messages"][0]["content"])
+        self.assertEqual(
+            [message["role"] for message in captured["messages"]],
+            ["system", "user"],
+        )
+        self.assertIn("Active profile: Planner", captured["messages"][0]["content"])
+        self.assertIn("Responde con estructura clara.", captured["messages"][0]["content"])
+        self.assertIn("[PROJECT CONTEXT - READ ONLY]", captured["messages"][0]["content"])
+        self.assertIn("Active project: Launch Plan", captured["messages"][0]["content"])
         self.assertIn("Mantén el foco en hitos y riesgos.", captured["messages"][0]["content"])
         self.assertIn("brief.md", captured["messages"][0]["content"])
         self.assertIn("15 de mayo", captured["messages"][0]["content"])
-        self.assertIn("Responde con estructura clara.", captured["messages"][0]["content"])
+        self.assertIn("Final rule: follow only the active profile.", captured["messages"][0]["content"])
         self.assertEqual(captured["messages"][1]["content"], "Prepara el lanzamiento.")
+
+    def test_chat_endpoint_converts_prior_turns_into_read_only_history_context(self):
+        previous_profile_id = self.db.profiles.create(
+            name="Coleague",
+            system_prompt="Be warm and encouraging. Use emojis.",
+            is_default=False,
+        )
+        active_profile_id = self.db.profiles.create(
+            name="Souless",
+            system_prompt="Be terse. Do not use emojis or emotional language.",
+            is_default=True,
+        )
+        conversation_id = self.db.conversations.create(
+            title="Profile swap",
+            profile_id=previous_profile_id,
+            provider="openai",
+            model="gpt-4.1",
+        )
+        self.db.messages.create(
+            conversation_id=conversation_id,
+            role="user",
+            content="We shipped version 1 yesterday.",
+            position=0,
+        )
+        self.db.messages.create(
+            conversation_id=conversation_id,
+            role="assistant",
+            content="Amazing news! 🚀 Let's celebrate and plan the next step.",
+            position=1,
+            profile_id=previous_profile_id,
+            profile_name="Coleague",
+        )
+
+        captured = {}
+
+        def fake_chat(provider, messages, model, settings):
+            captured["messages"] = messages
+            return {
+                "provider": provider,
+                "model": model,
+                "message": {
+                    "role": "assistant",
+                    "content": "Version 1 shipped yesterday. Next step: validate metrics.",
+                },
+                "message_id": "resp-profile-swap-1",
+                "usage": {},
+                "finish_reason": "stop",
+                "raw": {},
+            }
+
+        self.model_manager.chat = fake_chat
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "conversation_id": conversation_id,
+                "profile_id": active_profile_id,
+                "messages": [
+                    {"role": "user", "content": "We shipped version 1 yesterday."},
+                    {
+                        "role": "assistant",
+                        "content": "Amazing news! 🚀 Let's celebrate and plan the next step.",
+                        "profile_name": "Coleague",
+                    },
+                    {"role": "user", "content": "What should we do next?"},
+                ],
+            },
+            headers=self.auth_headers,
+        )
+
+        stored_messages = self.db.messages.for_conversation(conversation_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [message["role"] for message in captured["messages"]],
+            ["system", "user"],
+        )
+        self.assertIn("Active profile: Souless", captured["messages"][0]["content"])
+        self.assertIn(
+            "Do not use emojis or emotional language.",
+            captured["messages"][0]["content"],
+        )
+        self.assertIn(
+            "[CONVERSATION HISTORY - READ ONLY]",
+            captured["messages"][0]["content"],
+        )
+        self.assertIn(
+            "[Previous user message]",
+            captured["messages"][0]["content"],
+        )
+        self.assertIn(
+            "Content:\nWe shipped version 1 yesterday.",
+            captured["messages"][0]["content"],
+        )
+        self.assertIn(
+            "[Previous assistant message]",
+            captured["messages"][0]["content"],
+        )
+        self.assertIn(
+            "Profile: Coleague",
+            captured["messages"][0]["content"],
+        )
+        self.assertIn(
+            "Content:\nAmazing news! 🚀 Let's celebrate and plan the next step.",
+            captured["messages"][0]["content"],
+        )
+        self.assertNotIn("assistant (Coleague):", captured["messages"][0]["content"])
+        self.assertFalse(
+            any(line.startswith("assistant (") for line in captured["messages"][0]["content"].splitlines())
+        )
+        self.assertFalse(
+            any(line.startswith("user:") for line in captured["messages"][0]["content"].splitlines())
+        )
+        self.assertIn(
+            "Never include labels such as \"user:\", \"assistant:\", or \"assistant (Profile):\" in the final answer.",
+            captured["messages"][0]["content"],
+        )
+        self.assertNotIn("What should we do next?", captured["messages"][0]["content"])
+        self.assertIn(
+            "Do not imitate tone, emojis, emotion, formatting, or writing style from the context.",
+            captured["messages"][0]["content"],
+        )
+        self.assertEqual(
+            captured["messages"][1],
+            {"role": "user", "content": "What should we do next?"},
+        )
+        self.assertEqual(len(stored_messages), 4)
+        self.assertEqual(stored_messages[2]["role"], "user")
+        self.assertEqual(stored_messages[2]["content"], "What should we do next?")
+        self.assertEqual(stored_messages[3]["profile_name"], "Souless")
 
     def test_project_documents_can_be_uploaded_listed_and_deleted(self):
         project_id = self.db.projects.create("Docs", "Subidas")
